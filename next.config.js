@@ -1,0 +1,34 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+    // Optimize images
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+  },
+  // Allow dev origins for preview
+  allowedDevOrigins: [
+    'localhost',
+    '*.preview.same-app.com',
+  ],
+  // Enable experimental features for better performance
+  experimental: {
+    // Inline critical CSS to reduce render-blocking
+    optimizeCss: true,
+  },
+  // Compress responses
+  compress: true,
+  // Power by header removal
+  poweredByHeader: false,
+  // Generate ETags for better caching
+  generateEtags: true,
+  // Strict mode for better development
+  reactStrictMode: true,
+};
+
+module.exports = nextConfig;
