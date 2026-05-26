@@ -5,7 +5,7 @@ import { ArrowRight, Phone, CheckCircle, MapPin, Star } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import FloatingButtons from "@/components/layout/FloatingButtons";
-import ContactForm from "@/components/sections/ContactForm";
+import FormCTA from "@/components/sections/FormCTA";
 import {
   services,
   getAllServices,
@@ -250,8 +250,8 @@ export default async function CityServicePage({ params }: CityServicePageProps) 
             </div>
           </section>
 
-          {/* Contact Form */}
-          <ContactForm />
+          {/* CTA Section */}
+          <FormCTA cityName={city.name} serviceName={serviceData.name} />
 
           {/* Other services in this city */}
           <section className="mt-12">

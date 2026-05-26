@@ -15,7 +15,7 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import FloatingButtons from "@/components/layout/FloatingButtons";
-import ContactForm from "@/components/sections/ContactForm";
+import FormCTA from "@/components/sections/FormCTA";
 import { services, getAllServices, cities, businessInfo } from "@/lib/data";
 
 interface ServicePageProps {
@@ -280,8 +280,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
             </div>
           </section>
 
-          {/* Contact Form */}
-          <ContactForm />
+          {/* CTA Section */}
+          <FormCTA serviceName={serviceData.name} />
 
           {/* Related services */}
           {relatedServices.length > 0 && (

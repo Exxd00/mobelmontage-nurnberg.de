@@ -15,7 +15,7 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import FloatingButtons from "@/components/layout/FloatingButtons";
-import ContactForm from "@/components/sections/ContactForm";
+import FormCTA from "@/components/sections/FormCTA";
 import { cities, services, businessInfo } from "@/lib/data";
 
 interface CityPageProps {
@@ -388,8 +388,8 @@ export default async function CityPage({ params }: CityPageProps) {
             </div>
           </section>
 
-          {/* Contact Form */}
-          <ContactForm />
+          {/* CTA Section */}
+          <FormCTA cityName={city.name} />
 
           {/* Related cities */}
           <section className="mt-12">
