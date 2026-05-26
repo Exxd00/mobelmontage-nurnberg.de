@@ -203,7 +203,7 @@ export default async function CityPage({ params }: CityPageProps) {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
                 <Link
-                  href="#kontakt-form"
+                  href="/#kontakt-form"
                   className="inline-flex items-center justify-center gap-2 btn-primary px-6 py-3 rounded-xl font-medium shimmer no-underline"
                 >
                   Kostenloses Angebot anfordern

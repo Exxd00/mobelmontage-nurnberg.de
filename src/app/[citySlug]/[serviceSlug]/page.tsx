@@ -196,7 +196,7 @@ export default async function CityServicePage({ params }: CityServicePageProps) 
                 Jetzt anrufen
               </a>
               <Link
-                href="#kontakt-form"
+                href="/#kontakt-form"
                 className="inline-flex items-center justify-center gap-2 btn-outline px-6 py-3 rounded-xl font-medium"
               >
                 Kostenlos anfragen
