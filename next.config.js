@@ -18,8 +18,9 @@ const nextConfig = {
   ],
   // Enable experimental features for better performance
   experimental: {
-    // Inline critical CSS to reduce render-blocking
-    optimizeCss: true,
+    // Inline critical CSS to reduce render-blocking.
+    // Only in production: in dev it (critters) drastically slows down compiles.
+    optimizeCss: process.env.NODE_ENV === 'production',
   },
   // Compress responses
   compress: true,

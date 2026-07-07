@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, Phone, Home, Loader2 } from "lucide-react";
@@ -12,20 +12,34 @@ import { businessInfo } from "@/lib/data";
 function ThankYouContent() {
   const router = useRouter();
   const [isValidAccess, setIsValidAccess] = useState<boolean | null>(null);
+  // Ensures the access check + flag consumption runs exactly once,
+  // even under React Strict Mode's double-invoked effects (dev only).
+  const hasChecked = useRef(false);
 
   useEffect(() => {
-    // Check URL params directly from window.location for reliability
-    const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get("success");
+    if (hasChecked.current) return;
+    hasChecked.current = true;
 
-    // Also check sessionStorage as backup
-    const sessionSuccess = sessionStorage.getItem("form_submitted");
+    // Access is granted ONLY when the form set the one-time success flag after a
+    // CONFIRMED successful submission. The URL (?success=true) is intentionally
+    // NOT trusted, so nobody can reach this page by guessing the link.
+    let sessionSuccess: string | null = null;
+    try {
+      sessionSuccess = sessionStorage.getItem("form_submitted");
+    } catch {
+      sessionSuccess = null;
+    }
 
-    if (success === "true" || sessionSuccess === "true") {
+    if (sessionSuccess === "true") {
+      // Consume the flag immediately -> single-use access.
+      // A refresh, back-navigation or direct link will now redirect home.
+      try {
+        sessionStorage.removeItem("form_submitted");
+      } catch {
+        // ignore storage errors
+      }
+
       setIsValidAccess(true);
-
-      // Store in session for backup
-      sessionStorage.setItem("form_submitted", "true");
 
       // Track conversion event
       if (typeof window !== "undefined" && window.gtag) {
@@ -35,13 +49,8 @@ function ThankYouContent() {
         });
       }
 
-      // Clean URL
+      // Clean URL (remove any leftover query params)
       window.history.replaceState({}, "", "/thank-you");
-
-      // Clear session after delay
-      setTimeout(() => {
-        sessionStorage.removeItem("form_submitted");
-      }, 5000);
     } else {
       setIsValidAccess(false);
       router.replace("/");

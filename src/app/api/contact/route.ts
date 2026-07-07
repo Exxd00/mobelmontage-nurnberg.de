@@ -40,15 +40,16 @@ function getPriority(data: ContactFormData): string {
   return "Flexibel";
 }
 
-// Send to Google Sheets - Only essential columns (no phone)
-async function sendToGoogleSheets(data: ContactFormData): Promise<void> {
+// Send to Google Sheets - Only essential columns (no phone).
+// Returns true only when a request was actually accepted by the webhook.
+async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
   const webhookUrl = process.env.SHEETS_WEBHOOK_URL;
-  if (!webhookUrl) return;
+  if (!webhookUrl) return false;
 
   try {
     const priority = getPriority(data);
 
-    await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -62,8 +63,10 @@ async function sendToGoogleSheets(data: ContactFormData): Promise<void> {
         gclid: data.gclid || "-",
       }),
     });
+    return res.ok;
   } catch (e) {
     console.error("Sheets error:", e);
+    return false;
   }
 }
 
@@ -344,14 +347,60 @@ function getSafeFromEmail(): string {
   return "Moebelmontage Nuernberg <onboarding@resend.dev>";
 }
 
-// Send email - returns success even if email fails (we log errors)
-async function sendEmail(data: ContactFormData): Promise<{ success: boolean; error?: string; emailSent: boolean }> {
+// Try to extract a human-readable message from a Resend error response
+function parseResendError(status: number, errorText: string): string {
+  let message = errorText;
+  try {
+    const parsed = JSON.parse(errorText);
+    message = parsed.message || parsed.error || errorText;
+  } catch {
+    // errorText is not JSON, use it as-is
+  }
+
+  const lower = message.toLowerCase();
+
+  if (status === 401 || lower.includes("api key") || lower.includes("unauthorized")) {
+    return "E-Mail-Versand fehlgeschlagen: Der Resend API-Schlüssel (RESEND_API_KEY) ist ungültig.";
+  }
+  if (status === 403 || lower.includes("domain is not verified") || lower.includes("not verified")) {
+    return "E-Mail-Versand fehlgeschlagen: Die Absender-Domain ist bei Resend nicht verifiziert. Bitte Domain verifizieren oder RESEND_FROM_EMAIL auf onboarding@resend.dev setzen.";
+  }
+  if (lower.includes("from") && (lower.includes("invalid") || lower.includes("not allowed"))) {
+    return `E-Mail-Versand fehlgeschlagen: Die Absender-Adresse (RESEND_FROM_EMAIL) ist ungültig. (${message})`;
+  }
+  if (status === 422) {
+    return `E-Mail-Versand fehlgeschlagen: Ungültige Angaben. (${message})`;
+  }
+  if (status === 429) {
+    return "E-Mail-Versand fehlgeschlagen: Zu viele Anfragen (Rate-Limit von Resend erreicht). Bitte kurz warten.";
+  }
+
+  return `E-Mail-Versand fehlgeschlagen (Resend ${status}): ${message}`;
+}
+
+// Send email - returns whether the email was ACTUALLY sent, plus a detailed reason on failure
+async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const recipientEmail = process.env.RECIPIENT_EMAIL;
 
-  if (!apiKey || !recipientEmail) {
-    console.warn("Email not configured - RESEND_API_KEY or RECIPIENT_EMAIL missing");
-    return { success: true, emailSent: false, error: "E-Mail nicht konfiguriert" };
+  // Report exactly which piece of configuration is missing
+  if (!apiKey && !recipientEmail) {
+    return {
+      emailSent: false,
+      error: "E-Mail-Versand ist nicht konfiguriert: RESEND_API_KEY und RECIPIENT_EMAIL fehlen.",
+    };
+  }
+  if (!apiKey) {
+    return {
+      emailSent: false,
+      error: "E-Mail-Versand ist nicht konfiguriert: RESEND_API_KEY fehlt.",
+    };
+  }
+  if (!recipientEmail) {
+    return {
+      emailSent: false,
+      error: "E-Mail-Versand ist nicht konfiguriert: RECIPIENT_EMAIL (Empfänger) fehlt.",
+    };
   }
 
   const serviceName = SERVICE_NAMES[data.service] || data.service;
@@ -394,23 +443,16 @@ async function sendEmail(data: ContactFormData): Promise<{ success: boolean; err
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("Email error:", errorText);
-
-      // Check if it's a domain verification error - don't fail the whole request
-      if (errorText.includes("domain is not verified") || res.status === 403) {
-        console.warn("Resend domain not verified - email skipped but form submission continues");
-        return { success: true, emailSent: false, error: "Domain nicht verifiziert" };
-      }
-
-      return { success: true, emailSent: false, error: "E-Mail fehlgeschlagen" };
+      console.error("Email error:", res.status, errorText);
+      return { emailSent: false, error: parseResendError(res.status, errorText) };
     }
 
     console.log("Email sent successfully");
-    return { success: true, emailSent: true };
+    return { emailSent: true };
   } catch (e) {
-    console.error("Email error:", e);
-    // Don't fail the entire request for email errors
-    return { success: true, emailSent: false, error: "Netzwerkfehler" };
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("Email error:", message);
+    return { emailSent: false, error: `Netzwerkfehler beim E-Mail-Versand: ${message}` };
   }
 }
 
@@ -419,7 +461,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     if (!body.service || !body.name || !body.phone) {
-      return NextResponse.json({ error: "Pflichtfelder fehlen" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Pflichtfelder fehlen (Dienstleistung, Name und Telefon sind erforderlich)." },
+        { status: 400 },
+      );
     }
 
     // Log received data for debugging
@@ -446,42 +491,50 @@ export async function POST(request: NextRequest) {
       seite: body.seite,
     };
 
-    // Track if at least one notification method succeeded
+    // Secondary notification (best effort): Google Sheets. Never blocks the result.
     let sheetsSuccess = false;
-    let emailResult: { success: boolean; emailSent: boolean; error?: string } = { success: true, emailSent: false };
-
-    // Send to Sheets first (primary notification)
     try {
-      await sendToGoogleSheets(data);
-      sheetsSuccess = true;
-      console.log("Google Sheets notification sent successfully");
+      sheetsSuccess = await sendToGoogleSheets(data);
+      if (sheetsSuccess) console.log("Google Sheets notification sent successfully");
     } catch (sheetsError) {
       console.error("Google Sheets error:", sheetsError);
     }
 
-    // Try to send email (secondary notification)
-    emailResult = await sendEmail(data);
+    // Primary notification: the e-mail to the business. This MUST succeed.
+    const emailResult = await sendEmail(data);
 
-    // Form is successful if either Sheets OR Email worked
-    // Even if both fail, we return success to not frustrate the user
-    // The data is logged anyway
-    const overallSuccess = sheetsSuccess || emailResult.emailSent;
-
-    if (!overallSuccess) {
-      console.warn("Both notification methods failed, but returning success to user");
+    // If the e-mail did not actually go out, tell the client exactly why so it
+    // can be shown on the site. Do NOT pretend the submission succeeded.
+    if (!emailResult.emailSent) {
+      console.error("Contact form NOT delivered - email failed:", emailResult.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            emailResult.error ||
+            "Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
+          notificationsSent: { sheets: sheetsSuccess, email: false },
+        },
+        { status: 502 },
+      );
     }
 
+    console.log("Contact form delivered successfully via email");
     return NextResponse.json({
       success: true,
       imagesReceived: data.fileUrls.length,
       attachmentsReceived: data.fileAttachments?.length || 0,
       notificationsSent: {
         sheets: sheetsSuccess,
-        email: emailResult.emailSent
-      }
+        email: emailResult.emailSent,
+      },
     });
   } catch (e) {
-    console.error("API error:", e);
-    return NextResponse.json({ error: "Fehler" }, { status: 500 });
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("API error:", message);
+    return NextResponse.json(
+      { success: false, error: `Serverfehler: ${message}` },
+      { status: 500 },
+    );
   }
 }

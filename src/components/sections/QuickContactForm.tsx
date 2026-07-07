@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap } from "lucide-react";
+import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap, AlertCircle, Phone, MessageCircle } from "lucide-react";
 import { trackFormStart, trackFormSubmit, trackLead } from "@/lib/analytics";
 import { getTrackingData } from "@/lib/tracking";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { services } from "@/lib/data";
+import { services, businessInfo } from "@/lib/data";
 import { supabase, BUCKET_NAME, generateFilePath, getPublicUrl, isSupabaseConfigured } from "@/lib/supabase";
 import { uploadToImgbb, isImgbbConfigured, isImageFile as isImgbbImage } from "@/lib/imgbb";
 import { compressFiles, formatFileSize, calculateSavings, isImageFile, type CompressionProgress } from "@/lib/compression";
@@ -783,14 +783,6 @@ export default function QuickContactForm() {
     setIsSubmitting(true);
     setError("");
 
-    trackFormSubmit("quick_contact_form", formData.service);
-    trackLead({
-      source: "quick_contact_form",
-      service: formData.service,
-      phone: formData.phone,
-      email: formData.email,
-    });
-
     try {
       const uploadedImageUrls: string[] = [];
       const fileAttachments: { filename: string; content: string }[] = [];
@@ -955,11 +947,25 @@ export default function QuickContactForm() {
         message: 'Verarbeitung...',
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(result.error || "Fehler beim Senden");
+      // Only treat as success if the server actually delivered the request.
+      // The API returns { success: true } exclusively when the notification email was sent.
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.error ||
+            "Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns telefonisch.",
+        );
       }
+
+      // Confirmed success -> fire conversion tracking now (not before)
+      trackFormSubmit("quick_contact_form", formData.service);
+      trackLead({
+        source: "quick_contact_form",
+        service: formData.service,
+        phone: formData.phone,
+        email: formData.email,
+      });
 
       setProgressState({
         stage: 'done',
@@ -969,13 +975,19 @@ export default function QuickContactForm() {
 
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      // One-time access flag for the thank-you page (checked + cleared there)
       sessionStorage.setItem("form_submitted", "true");
-      router.push("/thank-you?success=true");
+      router.push("/thank-you");
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Fehler beim Senden. Bitte versuchen Sie es erneut.";
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Senden. Bitte versuchen Sie es erneut.";
       setError(errorMessage);
       setIsSubmitting(false);
       setProgressState({ stage: 'idle', progress: 0, message: '' });
+      // Bring the error into view so the reason is always visible
+      scrollToInvalidField("quick-submit-error");
     }
   };
 
@@ -2545,9 +2557,42 @@ export default function QuickContactForm() {
                   {/* Progress Bar */}
                   {isSubmitting && <ProgressBar state={progressState} />}
 
-                  {/* Error */}
+                  {/* Error - prominent, always shows the exact reason + fallback contact */}
                   {error && (
-                    <p className="text-sm text-destructive">{error}</p>
+                    <div
+                      id="quick-submit-error"
+                      role="alert"
+                      aria-live="assertive"
+                      className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2"
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-semibold text-destructive text-sm">
+                            Anfrage konnte nicht gesendet werden
+                          </p>
+                          <p className="text-sm text-destructive/90 break-words">{error}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                        <a
+                          href={`tel:${businessInfo.phone}`}
+                          className="inline-flex items-center justify-center gap-2 flex-1 rounded-lg border-2 border-destructive/40 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Phone className="w-4 h-4" />
+                          Anrufen: {businessInfo.phone}
+                        </a>
+                        <a
+                          href={`https://wa.me/${businessInfo.whatsapp.replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 flex-1 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#20bd5a] transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          WhatsApp
+                        </a>
+                      </div>
+                    </div>
                   )}
 
                   {/* Buttons */}
