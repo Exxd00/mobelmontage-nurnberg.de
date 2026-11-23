@@ -1,7 +1,13 @@
-"use client";
+import type { Metadata } from "next";
 
 import { Download, FileSpreadsheet, CheckCircle, ExternalLink, AlertCircle } from "lucide-react";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Google Ads Importdateien",
+  robots: { index: false, follow: false },
+  alternates: { canonical: null },
+};
 
 const files = [
   {
@@ -17,7 +23,7 @@ const files = [
   {
     name: "keywords.csv",
     description: "الكلمات المفتاحية (35+ كلمة)",
-    size: "4 KB",
+    size: "5,6 kB",
   },
   {
     name: "negative-keywords.csv",
@@ -26,8 +32,13 @@ const files = [
   },
   {
     name: "responsive-search-ads.csv",
-    description: "إعلانات البحث المتجاوبة (8 إعلانات)",
-    size: "8 KB",
+    description: "إعلانات البحث المتجاوبة (9 إعلانات)",
+    size: "7,4 kB",
+  },
+  {
+    name: "responsive-display-ads.csv",
+    description: "إعلان العرض المتجاوب",
+    size: "0,9 kB",
   },
   {
     name: "sitelinks.csv",
@@ -95,7 +106,7 @@ export default function AdsImportPage() {
             <p className="text-xl text-gray-600" dir="rtl">
               ملفات CSV جاهزة للاستيراد في Google Ads Editor
               <br />
-              <span className="text-orange-600 font-medium">4 حملات كاملة + 35 كلمة مفتاحية + 8 إعلانات</span>
+              <span className="text-orange-600 font-medium">4 حملات و35 كلمة مفتاحية و9 إعلانات بحث وإعلان عرض واحد</span>
             </p>
           </div>
 

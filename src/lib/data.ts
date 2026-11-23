@@ -189,7 +189,7 @@ export const regions = [
   },
 ];
 
-// Extended cities list for pSEO (500+ cities)
+// Named places used by the public service directory.
 export const cities = [
   // Kreisfreie Städte
   { name: "Nürnberg", slug: "nuernberg", region: "Mittelfranken", isMain: true },
@@ -437,77 +437,7 @@ export const cities = [
   { name: "Wattendorf", slug: "wattendorf", region: "Landkreis Bamberg" },
   { name: "Zapfendorf", slug: "zapfendorf", region: "Landkreis Bamberg" },
 
-  // Additional cities to reach 500+
-  ...generateAdditionalCities(),
 ];
-
-function generateAdditionalCities() {
-  const additionalRegions = [
-    "Neustadt an der Aisch-Bad Windsheim",
-    "Kitzingen",
-    "Haßberge",
-    "Schweinfurt",
-    "Main-Spessart",
-    "Würzburg Land",
-    "Aschaffenburg",
-    "Miltenberg",
-    "Tirschenreuth",
-    "Schwandorf",
-    "Cham",
-    "Straubing-Bogen",
-    "Deggendorf",
-    "Kelheim",
-    "Landshut",
-    "Freising",
-    "Erding",
-    "Ebersberg",
-    "Rosenheim",
-    "Miesbach",
-  ];
-
-  const cityPrefixes = [
-    "Ober", "Unter", "Alt", "Neu", "Klein", "Groß", "Hinter", "Vorder",
-    "Nieder", "Mittel", "Süd", "Nord", "Ost", "West",
-  ];
-
-  const citySuffixes = [
-    "dorf", "heim", "bach", "berg", "feld", "hausen", "hofen",
-    "kirchen", "reuth", "brunn", "thal", "au", "ing", "ried",
-  ];
-
-  const additionalCities: Array<{ name: string; slug: string; region: string }> = [];
-
-  const baseNames = [
-    "Ober", "Unter", "Alt", "Neu", "Groß", "Klein", "Mittel", "Vorder", "Hinter",
-  ];
-
-  const endings = [
-    "bronn", "stein", "felden", "rieth", "moos", "see", "wald", "grün",
-    "rain", "leiten", "weiher", "mühl", "grund", "egg", "eck", "wang",
-  ];
-
-  // Generate unique city names
-  let counter = 0;
-  for (const region of additionalRegions) {
-    for (let i = 0; i < 15; i++) {
-      const prefix = baseNames[counter % baseNames.length];
-      const suffix = endings[(counter + i) % endings.length];
-      const name = `${prefix}${suffix}`;
-      const slug = name.toLowerCase().replace(/ü/g, 'ue').replace(/ö/g, 'oe').replace(/ä/g, 'ae').replace(/ß/g, 'ss');
-
-      if (!additionalCities.find(c => c.slug === slug)) {
-        additionalCities.push({
-          name,
-          slug,
-          region,
-        });
-      }
-      counter++;
-    }
-  }
-
-  return additionalCities;
-}
 
 // Testimonials
 export const testimonials = [
@@ -558,46 +488,6 @@ export const testimonials = [
     rating: 5,
     text: "Top Arbeit! Die Möbel wurden pünktlich geliefert und fachgerecht aufgebaut.",
     date: "2024-07-15",
-  },
-];
-
-// Gallery images
-export const galleryImages = [
-  {
-    id: 1,
-    src: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80",
-    alt: "Moderne Küche Montage",
-    category: "Küche",
-  },
-  {
-    id: 2,
-    src: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80",
-    alt: "Wohnzimmer Einrichtung",
-    category: "Wohnzimmer",
-  },
-  {
-    id: 3,
-    src: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800&q=80",
-    alt: "Schlafzimmer Schrank",
-    category: "Schlafzimmer",
-  },
-  {
-    id: 4,
-    src: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80",
-    alt: "IKEA PAX Schrank",
-    category: "Schränke",
-  },
-  {
-    id: 5,
-    src: "https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&q=80",
-    alt: "Küchen Installation",
-    category: "Küche",
-  },
-  {
-    id: 6,
-    src: "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=800&q=80",
-    alt: "Büromöbel Aufbau",
-    category: "Büro",
   },
 ];
 

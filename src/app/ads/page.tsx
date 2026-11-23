@@ -1,6 +1,14 @@
-"use client";
+import type { Metadata } from "next";
+import Image from "next/image";
+import { projects } from "@/lib/projects";
 
 import { Download } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Anzeigenvorschau",
+  robots: { index: false, follow: false },
+  alternates: { canonical: null },
+};
 
 // Ad Banner Component
 function AdBanner({
@@ -30,19 +38,19 @@ function AdBanner({
     main: "Möbelmontage Nürnberg",
     kitchen: "Küchenmontage",
     ikea: "IKEA Montage",
-    delivery: "Möbel Lieferung",
+    delivery: "Möbellieferung",
   };
 
   const sublines = {
     main: "Professionell & Schnell",
     kitchen: "Komplett-Service",
     ikea: "PAX, METOD & mehr",
-    delivery: "Sicher & Pünktlich",
+    delivery: "Abholung und Lieferung",
   };
 
   const ctas = {
     main: "Jetzt Angebot",
-    kitchen: "Termin buchen",
+    kitchen: "Termin anfragen",
     ikea: "Preis anfragen",
     delivery: "Kostenlos anfragen",
   };
@@ -72,7 +80,7 @@ function AdBanner({
             {!isTiny && (
               <div className={`inline-block bg-white/20 backdrop-blur-sm rounded-full px-${isSmall ? '2' : '3'} py-1 mb-${isSmall ? '1' : '2'}`}>
                 <span className={`text-${isTiny ? 'xs' : isSmall ? 'xs' : 'sm'} font-medium`}>
-                  12 Jahre Erfahrung
+                  Nürnberg und Umgebung
                 </span>
               </div>
             )}
@@ -93,8 +101,8 @@ function AdBanner({
             {!isSmall && isLandscape && (
               <div className="flex flex-wrap gap-2 mb-4">
                 <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Festpreis</span>
-                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">24h Service</span>
-                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Alle Marken</span>
+                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Termin nach Absprache</span>
+                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Angebot nach Anfrage</span>
               </div>
             )}
 
@@ -106,18 +114,6 @@ function AdBanner({
             </button>
           </div>
 
-          {/* Right/Bottom Section - Visual */}
-          {!isTiny && (
-            <div className={`${isLandscape ? 'flex-shrink-0 ml-4' : 'mt-4'}`}>
-              {/* Stats Circle */}
-              <div className={`bg-white/20 backdrop-blur-sm rounded-full flex flex-col items-center justify-center ${
-                isSmall ? 'w-16 h-16' : 'w-24 h-24'
-              }`}>
-                <span className={`font-bold ${isSmall ? 'text-lg' : 'text-2xl'}`}>5000+</span>
-                <span className={`${isSmall ? 'text-xs' : 'text-xs'} opacity-80`}>Kunden</span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Corner Logo */}
@@ -135,24 +131,20 @@ function ResponsiveDisplayAd({
 }: {
   variant?: "main" | "kitchen" | "ikea" | "delivery";
 }) {
-  const images = {
-    main: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&q=80",
-    kitchen: "https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&q=80",
-    ikea: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80",
-    delivery: "https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=800&q=80",
-  };
+  const images = { main: projects[0].cover, kitchen: projects[2].cover, ikea: null, delivery: null };
+  const image = images[variant];
 
   const headlines = {
     main: "Möbelmontage Nürnberg",
     kitchen: "Professionelle Küchenmontage",
-    ikea: "IKEA Montage Spezialist",
-    delivery: "Möbel Lieferung & Aufbau",
+    ikea: "Montage von IKEA Möbeln",
+    delivery: "Möbellieferung & Aufbau",
   };
 
   const descriptions = {
-    main: "Professioneller Möbelaufbau in Nürnberg. IKEA, PAX, Küchen & mehr. Festpreise!",
-    kitchen: "Komplette Kücheninstallation inkl. Elektro & Wasseranschluss. Termin in 24h!",
-    ikea: "PAX, METOD, BESTA - Wir bauen alle IKEA Möbel auf. Schnell & sauber!",
+    main: "Möbelaufbau in Nürnberg und Umgebung. Beschreiben Sie Ihr Vorhaben für ein individuelles Angebot.",
+    kitchen: "Montage von Schränken, Fronten und Arbeitsplatten nach Ihrem Küchenplan.",
+    ikea: "Montage für PAX, METOD und weitere IKEA Möbel nach Ihrer Planung.",
     delivery: "Abholung vom Möbelhaus + Aufbau bei Ihnen. Alles aus einer Hand!",
   };
 
@@ -172,17 +164,13 @@ function ResponsiveDisplayAd({
       {/* Landscape Version */}
       <div className="mb-6">
         <p className="text-sm text-muted-foreground mb-2">Landscape (1200x628)</p>
-        <div className="relative w-full max-w-3xl h-80 rounded-xl overflow-hidden shadow-2xl">
-          <img
-            src={images[variant]}
-            alt={headlines[variant]}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+        <div className={`relative w-full max-w-3xl h-80 rounded-xl overflow-hidden shadow-2xl ${colors[variant]}`}>
+          {image && <Image src={image.src} alt={image.alt} fill sizes="(max-width: 768px) 92vw, 768px" className="object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
           <div className="absolute inset-0 p-8 flex flex-col justify-center">
             <div className="max-w-md">
               <div className="inline-block bg-white/20 backdrop-blur-sm rounded-full px-4 py-1 mb-3">
-                <span className="text-white text-sm font-medium">12 Jahre Erfahrung</span>
+                <span className="text-white text-sm font-medium">Nürnberg und Umgebung</span>
               </div>
               <h2 className="text-4xl font-bold text-white mb-3">{headlines[variant]}</h2>
               <p className="text-white/90 text-lg mb-4">{descriptions[variant]}</p>
@@ -190,10 +178,6 @@ function ResponsiveDisplayAd({
                 <button className={`${colors[variant]} text-white font-bold px-6 py-3 rounded-full shadow-lg`}>
                   Jetzt Angebot erhalten
                 </button>
-                <div className="text-white">
-                  <span className="text-2xl font-bold">5.000+</span>
-                  <span className="text-sm ml-1 opacity-80">Kunden</span>
-                </div>
               </div>
             </div>
           </div>
@@ -206,16 +190,12 @@ function ResponsiveDisplayAd({
       {/* Square Version */}
       <div className="mb-6">
         <p className="text-sm text-muted-foreground mb-2">Square (1200x1200)</p>
-        <div className="relative w-80 h-80 rounded-xl overflow-hidden shadow-2xl">
-          <img
-            src={images[variant]}
-            alt={headlines[variant]}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+        <div className={`relative w-80 h-80 rounded-xl overflow-hidden shadow-2xl ${colors[variant]}`}>
+          {image && <Image src={image.src} alt={image.alt} fill sizes="320px" className="object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
           <div className="absolute inset-0 p-6 flex flex-col justify-end">
             <div className="inline-block bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 mb-2 w-fit">
-              <span className="text-white text-xs font-medium">12 Jahre Erfahrung</span>
+              <span className="text-white text-xs font-medium">Nürnberg und Umgebung</span>
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">{headlines[variant]}</h2>
             <p className="text-white/80 text-sm mb-3 line-clamp-2">{descriptions[variant]}</p>
@@ -330,14 +310,14 @@ export default function AdsPage() {
                 <ul className="space-y-2 text-sm">
                   <li className="bg-white p-2 rounded">Möbelmontage Nürnberg</li>
                   <li className="bg-white p-2 rounded">Professioneller Möbelaufbau</li>
-                  <li className="bg-white p-2 rounded">IKEA Montage Spezialist</li>
+                  <li className="bg-white p-2 rounded">Montage von IKEA Möbeln</li>
                   <li className="bg-white p-2 rounded">Küchenmontage vom Profi</li>
                   <li className="bg-white p-2 rounded">Jetzt Angebot erhalten</li>
-                  <li className="bg-white p-2 rounded">12 Jahre Erfahrung</li>
+                  <li className="bg-white p-2 rounded">Nürnberg und Umgebung</li>
                   <li className="bg-white p-2 rounded">Festpreise</li>
-                  <li className="bg-white p-2 rounded">5.000+ zufriedene Kunden</li>
-                  <li className="bg-white p-2 rounded">Termin in 24h möglich</li>
-                  <li className="bg-white p-2 rounded">Heute noch verfügbar</li>
+                  <li className="bg-white p-2 rounded">Küchenplan einreichen</li>
+                  <li className="bg-white p-2 rounded">Montagetermin anfragen</li>
+                  <li className="bg-white p-2 rounded">Angebot für Ihren Aufbau</li>
                 </ul>
               </div>
 
@@ -346,9 +326,9 @@ export default function AdsPage() {
                 <h3 className="font-bold text-lg mb-4">Descriptions (الأوصاف)</h3>
                 <ul className="space-y-2 text-sm">
                   <li className="bg-white p-2 rounded">Professionelle Möbelmontage in Nürnberg & Umgebung. IKEA, PAX, Küchen & mehr. Festpreis!</li>
-                  <li className="bg-white p-2 rounded">Über 5.000 zufriedene Kunden. Schneller Service. Jetzt kostenloses Angebot erhalten!</li>
-                  <li className="bg-white p-2 rounded">12 Jahre Erfahrung. Alle Möbelmarken. Montage, Lieferung & Entsorgung aus einer Hand.</li>
-                  <li className="bg-white p-2 rounded">Expressservice möglich. Zahlung nach Fertigstellung. Werkzeug inklusive!</li>
+                  <li className="bg-white p-2 rounded">Möbel, Adresse und Wunschtermin angeben und ein Angebot für die Montage anfragen.</li>
+                  <li className="bg-white p-2 rounded">Angebot für Möbelmontage oder Lieferung mit Aufbau in Nürnberg und Umgebung anfragen.</li>
+                  <li className="bg-white p-2 rounded">Küchenplan oder Möbelliste für eine individuelle Planung einreichen.</li>
                 </ul>
               </div>
 
@@ -358,8 +338,8 @@ export default function AdsPage() {
                 <ul className="space-y-2 text-sm">
                   <li className="bg-white p-2 rounded">Professionelle Möbelmontage in Nürnberg - IKEA, Küchen & mehr</li>
                   <li className="bg-white p-2 rounded">Ihr Möbelaufbau-Service in Nürnberg - Schnell, Zuverlässig, Festpreis</li>
-                  <li className="bg-white p-2 rounded">IKEA Montage Spezialist - PAX, METOD, BESTA & alle anderen Möbel</li>
-                  <li className="bg-white p-2 rounded">Komplette Küchenmontage inkl. Elektro & Wasseranschluss - Termin in 24h</li>
+                  <li className="bg-white p-2 rounded">Montage von IKEA Möbeln - PAX, METOD, BESTA & alle anderen Möbel</li>
+                  <li className="bg-white p-2 rounded">Küchenmontage in Nürnberg – Schränke, Auszüge und Arbeitsplatten nach Plan</li>
                 </ul>
               </div>
             </div>

@@ -1,60 +1,60 @@
 import type { Metadata } from "next";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import FloatingButtons from "@/components/layout/FloatingButtons";
-import Gallery from "@/components/sections/Gallery";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import Gallery from "@/components/sections/Gallery";
+import { projects } from "@/lib/projects";
+import styles from "./projects.module.css";
+
+const title = "Küchenmontage im Vorher-Nachher-Vergleich";
+const description = "Vier Messeküchen vor und nach der Montage. Fotos von Kücheninseln, Auszügen, Arbeitsplatten und fertigen Fronten zeigen den Aufbau im Detail.";
+const url = "https://mobelmontage-nurnberg.de/arbeiten";
 
 export const metadata: Metadata = {
-  title: "Unsere Arbeiten - Galerie",
-  description:
-    "Sehen Sie Beispiele unserer professionellen Möbelmontage, Küchenmontage und mehr. Qualität die überzeugt!",
-  alternates: {
-    canonical: "https://mobelmontage-nurnberg.de/arbeiten",
-  },
+  title,
+  description,
+  alternates: { canonical: url },
+  openGraph: { title, description, url, images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: projects[0].cover.alt }] },
+  twitter: { card: "summary_large_image", title, description, images: ["/og-image.jpg"] },
 };
 
 export default function ArbeitenPage() {
+  const gallery = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    url, name: title, description, inLanguage: "de",
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: projects.map((project, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: project.title,
+        url: `${url}/${project.slug}`,
+      })),
+    },
+  };
   return (
     <>
       <Header />
-      <main className="pb-16" style={{ paddingTop: 'calc(6rem + env(safe-area-inset-top, 0px))' }}>
-        <div className="container-max">
-          {/* Header */}
-          <div className="text-center mb-10">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              Unsere Arbeiten
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Einblicke in unsere Projekte - von der IKEA Küche bis zum
-              kompletten Schlafzimmer
-            </p>
+      <main id="main-content" className={styles.page}>
+        <div className={styles.wrap}>
+          <nav className={styles.crumb} aria-label="Brotkrumennavigation">
+            <Link href="/">Startseite</Link><span aria-hidden="true">/</span><span aria-current="page">Projekte</span>
+          </nav>
+          <div className={styles.intro}>
+            <h1>Küchenmontage<br />im Detail.</h1>
+            <p>Vier Messeküchen, fotografiert während und nach dem Aufbau. Entdecken Sie, wie aus offenen Korpussen fertige Inseln, Schrankwände und Spülzeilen werden.</p>
           </div>
-
-          {/* Gallery */}
-          <Gallery showAll />
-
-          {/* CTA */}
-          <div className="mt-16 text-center bg-muted/50 rounded-2xl p-8">
-            <h2 className="text-xl md:text-2xl font-bold mb-3">
-              Überzeugt von unserer Arbeit?
-            </h2>
-            <p className="text-muted-foreground mb-6">
-              Lassen Sie auch Ihr Projekt professionell umsetzen
-            </p>
-            <Link
-              href="/#kontakt-form"
-              className="inline-flex items-center gap-2 btn-primary px-6 py-3 rounded-xl font-medium"
-            >
-              Jetzt anfragen
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
+          <Gallery />
+          <aside className={styles.cta}>
+            <div><h2>Ihre Küche ist schon geplant?</h2><p>Schicken Sie uns den Küchenplan und Ihren gewünschten Montagetermin.</p></div>
+            <Link href="/?leistung=kuechenmontage#kontakt-form">Angebot anfragen <ArrowRight size={18} aria-hidden="true" /></Link>
+          </aside>
         </div>
       </main>
       <Footer />
-      <FloatingButtons />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(gallery).replace(/</g, "\\u003c") }} />
     </>
   );
 }

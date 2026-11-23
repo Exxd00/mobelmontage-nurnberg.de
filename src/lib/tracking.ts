@@ -1,5 +1,4 @@
-// Tracking Utility for GCLID, UTM Parameters, Source Detection
-// تتبع مصدر الزيارات وGoogle Ads
+import { hasAnalyticsConsent } from './consent';
 
 interface TrackingData {
   gclid: string | null;
@@ -97,7 +96,7 @@ function detectSource(): string {
 
 // Initialize tracking on page load
 export function initTracking(): void {
-  if (typeof window === 'undefined') return;
+  if (!hasAnalyticsConsent()) return;
 
   // Capture GCLID from URL and store it
   const gclid = getUrlParam('gclid');
@@ -120,18 +119,23 @@ export function initTracking(): void {
     storeTrackingData('first_source', detectSource());
   }
 
-  // Always update last source
-  storeTrackingData('last_source', detectSource());
+  const source = detectSource();
+  if (source !== 'Direct' || !getStoredTrackingData('last_source')) {
+    storeTrackingData('last_source', source);
+  }
 }
 
 // Get all tracking data for form submission
 export function getTrackingData(): TrackingData {
+  if (!hasAnalyticsConsent()) {
+    return { gclid: null, source: 'Nicht erfasst', medium: '', campaign: '', page: '', referrer: '' };
+  }
   const gclid = getStoredTrackingData('gclid') || getUrlParam('gclid');
   const source = getStoredTrackingData('last_source') || detectSource();
   const medium = getStoredTrackingData('utm_medium') || getUrlParam('utm_medium') || '';
   const campaign = getStoredTrackingData('utm_campaign') || getUrlParam('utm_campaign') || '';
-  const page = typeof window !== 'undefined' ? window.location.href : '';
-  const referrer = typeof document !== 'undefined' ? document.referrer : '';
+  const page = window.location.origin + window.location.pathname;
+  const referrer = document.referrer ? new URL(document.referrer).origin : '';
 
   return {
     gclid,
@@ -145,16 +149,29 @@ export function getTrackingData(): TrackingData {
 
 // Get GCLID specifically
 export function getGCLID(): string | null {
+  if (!hasAnalyticsConsent()) return null;
   return getStoredTrackingData('gclid') || getUrlParam('gclid');
 }
 
 // Get current page URL
 export function getCurrentPage(): string {
-  if (typeof window === 'undefined') return '';
-  return window.location.href;
+  if (!hasAnalyticsConsent()) return '';
+  return window.location.origin + window.location.pathname;
 }
 
 // Get traffic source
 export function getTrafficSource(): string {
+  if (!hasAnalyticsConsent()) return 'Nicht erfasst';
   return getStoredTrackingData('last_source') || detectSource();
+}
+
+export function clearAttribution(): void {
+  try {
+    for (const key of ['gclid', 'utm_source', 'utm_medium', 'utm_campaign', 'first_source', 'last_source', 'leads']) {
+      localStorage.removeItem(key);
+      localStorage.removeItem(key + '_timestamp');
+    }
+  } catch {
+    // Storage may be disabled by the browser.
+  }
 }
