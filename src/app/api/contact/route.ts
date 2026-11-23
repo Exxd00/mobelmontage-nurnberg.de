@@ -6,6 +6,7 @@ interface FileAttachment {
 }
 
 interface ContactFormData {
+  reference: string;
   service: string;
   name: string;
   email: string;
@@ -21,6 +22,7 @@ interface ContactFormData {
 }
 
 const SERVICE_NAMES: Record<string, string> = {
+  rueckruf: "Rückruf",
   lieferungen: "Lieferungen",
   moebelmontage: "Möbelmontage",
   kuechenmontage: "Küchenmontage",
@@ -57,7 +59,7 @@ async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
         name: data.name,
         email: data.email || "-",
         plz: data.plz || "-",
-        service: SERVICE_NAMES[data.service] || data.service,
+        service: (Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service),
         priority: priority,
         quelle: data.quelle || "Direct",
         gclid: data.gclid || "-",
@@ -70,244 +72,91 @@ async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
   }
 }
 
-// Build email HTML - Compact dark theme like keller-montage.de
+const DETAIL_LABELS: Record<string, string> = {
+  urgency: "Dringlichkeit", timeframe: "Zeitraum", dayTime: "Tageszeit", moveDate: "Umzugsdatum",
+  brand: "Marke", form: "Küchenform", cabinetCount: "Schrankanzahl", kitchenOnSite: "Küche vor Ort",
+  needPickup: "Abholung gewünscht", pickupAddress: "Abholadresse", kitchenCondition: "Zustand der Küche",
+  countertopType: "Arbeitsplatte", hasOldKitchen: "Alte Küche vorhanden", oldKitchenAction: "Arbeiten an der alten Küche",
+  hasWaterSystem: "Wassersystem", waterConnection: "Wasseranschluss", electricConnection: "Elektroanschluss",
+  cutCountertop: "Platte zuschneiden", parking: "Parkmöglichkeit", access: "Zugang",
+  furnitureType: "Möbelart", itemCount: "Anzahl", furnitureOnSite: "Möbel vor Ort", furnitureCondition: "Zustand der Möbel",
+  pickupFloor: "Abholetage", pickupParking: "Parken bei der Abholung", deliveryAddress: "Lieferadresse",
+  deliveryFloor: "Lieferetage", deliveryParking: "Parken bei der Lieferung", itemDescription: "Gegenstände",
+  itemSize: "Größe und Gewicht", needHelpers: "Trageleistung gewünscht", currentAddress: "Bisherige Adresse",
+  currentFloor: "Bisherige Etage", currentParking: "Parken am Auszug", currentRooms: "Anzahl Zimmer",
+  currentSize: "Wohnfläche", hasElevator: "Aufzug", newAddress: "Neue Adresse", newFloor: "Neue Etage",
+  newParking: "Parken am Einzug", newHasElevator: "Aufzug am Einzug", hasHeavyItems: "Schwere Gegenstände",
+  heavyItemsDescription: "Beschreibung schwerer Gegenstände", needPacking: "Verpackung gewünscht",
+  needStorage: "Zwischenlagerung gewünscht", address: "Adresse", floor: "Etage", areaType: "Bereich",
+  areaSize: "Fläche", roomCount: "Anzahl Räume", itemTypes: "Art der Gegenstände", needsDisposal: "Entsorgung",
+  specialItems: "Besondere Gegenstände", company: "Firma oder Organisation", timeSlot: "Zugangs- oder Lieferzeitfenster",
+};
+
+function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function attachmentLink(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    if (["https:", "http:"].includes(url.protocol) && !url.username && !url.password) {
+      return escapeHtml(url.href);
+    }
+  } catch {
+    // Invalid attachment addresses have no link in the email.
+  }
+}
+
 function buildEmailHtml(data: ContactFormData): string {
-  const serviceName = SERVICE_NAMES[data.service] || data.service;
-  const priority = getPriority(data);
-  const isDringend = priority === "DRINGEND";
-  const details = data.serviceDetails || {};
-
-  // Helper for table row - compact style
-  const row = (label: string, value: string) =>
-    value && value !== "-" && value !== ""
-      ? `<tr>
-          <td style="padding:3px 0;color:#9ca3af;font-size:13px;width:42%;">${label}:</td>
-          <td style="padding:3px 0;color:#fff;font-size:13px;font-weight:500;">${value}</td>
-        </tr>`
-      : "";
-
-  // Section with colored left border
-  const section = (icon: string, title: string, borderColor: string, rows: string) =>
-    rows.trim()
-      ? `<div style="background:#1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid ${borderColor};">
-          <div style="font-weight:600;color:${borderColor};margin-bottom:6px;font-size:12px;">${icon} ${title}</div>
-          <table style="width:100%;">${rows}</table>
-        </div>`
-      : "";
-
-  // Build service-specific details
-  let detailsRows = "";
-  let detailsTitle = "Details";
-  let detailsIcon = "📋";
-
-  if (data.service === "kuechenmontage") {
-    detailsTitle = "Küchen-Details";
-    detailsIcon = "🍳";
-    detailsRows = [
-      row("Möbelart", details.furnitureType),
-      row("Marke", details.brand),
-      row("Form", details.form),
-      row("Schränke", details.cabinetCount),
-      row("Zustand", details.kitchenCondition),
-      row("Arbeitsplatte", details.countertopType),
-      row("Alte Küche", details.hasOldKitchen === "Ja" ? `Ja - ${details.oldKitchenAction || ""}` : details.hasOldKitchen),
-      row("Wassersystem", details.hasWaterSystem),
-      row("Wasseranschluss", details.waterConnection),
-      row("Elektroanschluss", details.electricConnection),
-      row("Platte zuschneiden", details.cutCountertop),
-    ].join("");
-  } else if (data.service === "moebelmontage") {
-    detailsTitle = "Möbel-Details";
-    detailsIcon = "🪑";
-    detailsRows = [
-      row("Möbelart", details.furnitureType),
-      row("Marke", details.brand),
-      row("Anzahl", details.itemCount),
-      row("Zustand", details.furnitureCondition),
-      row("Vor Ort", details.furnitureOnSite),
-    ].join("");
-  } else if (data.service === "lieferungen") {
-    detailsTitle = "Lieferung-Details";
-    detailsIcon = "🚚";
-    detailsRows = [
-      row("Abholadresse", details.pickupAddress),
-      row("Abholung Etage", details.pickupFloor),
-      row("Lieferadresse", details.deliveryAddress),
-      row("Lieferung Etage", details.deliveryFloor),
-      row("Beschreibung", details.itemDescription),
-      row("Anzahl", details.itemCount),
-      row("Größe/Gewicht", details.itemSize),
-      row("Helfer", details.needHelpers),
-    ].join("");
-  } else if (data.service === "umzuege") {
-    detailsTitle = "Umzug-Details";
-    detailsIcon = "🏠";
-    detailsRows = [
-      row("Aktuelle Adresse", details.currentAddress),
-      row("Aktuelle Etage", details.currentFloor),
-      row("Wohnfläche", details.currentSize),
-      row("Zimmer", details.currentRooms),
-      row("Aufzug (aktuell)", details.hasElevator),
-      row("Neue Adresse", details.newAddress),
-      row("Neue Etage", details.newFloor),
-      row("Aufzug (neu)", details.newHasElevator),
-      row("Schwere Gegenstände", details.hasHeavyItems === "Ja" ? `Ja - ${details.heavyItemsDescription || ""}` : details.hasHeavyItems),
-      row("Verpackung", details.needPacking),
-      row("Zwischenlagerung", details.needStorage),
-    ].join("");
-  } else if (data.service === "entruempelung") {
-    detailsTitle = "Entrümpelung-Details";
-    detailsIcon = "🧹";
-    detailsRows = [
-      row("Adresse", details.address),
-      row("Etage", details.floor),
-      row("Aufzug", details.hasElevator),
-      row("Bereichsart", details.areaType),
-      row("Fläche", details.areaSize),
-      row("Räume", details.roomCount),
-      row("Gegenstandsart", details.itemTypes),
-      row("Schwere Gegenstände", details.hasHeavyItems),
-      row("Entsorgung", details.needsDisposal),
-      row("Sondergegenstände", details.specialItems),
-    ].join("");
-  }
-
-  // Terminwunsch rows
-  const terminRows = [
-    row("Dringlichkeit", details.urgency),
-    row("Zeitraum", details.timeframe || details.moveDate),
-    row("Tageszeit", details.dayTime),
+  const service = escapeHtml((Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service));
+  const section = (heading: string, content: string) => content ? `
+    <section style="padding:18px 0;border-top:1px solid #CFD5C9">
+      <h2 style="margin:0 0 12px;font-size:19px;line-height:1.25;color:#2D4731">${heading}</h2>
+      ${content}
+    </section>` : "";
+  const row = (label: string, value: string) => `
+    <tr>
+      <th scope="row" style="width:42%;padding:6px 12px 6px 0;text-align:left;vertical-align:top;font-size:14px;font-weight:500;color:#435044">${escapeHtml(label)}</th>
+      <td style="padding:6px 0;vertical-align:top;overflow-wrap:anywhere">${value}</td>
+    </tr>`;
+  const table = (rows: string) => rows ? `<table width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;border-collapse:collapse">${rows}</table>` : "";
+  const detailRows = Object.entries(data.serviceDetails || {})
+    .filter(([, value]) => typeof value === "string" && value.trim() && value !== "-")
+    .map(([key, value]) => row(Object.hasOwn(DETAIL_LABELS, key) ? DETAIL_LABELS[key] : key, escapeHtml(value))).join("");
+  const phone = data.phone.replace(/[^\d+]/g, "");
+  const dial = /^\+?\d{4,20}$/.test(phone) ? phone : "";
+  const waPhone = dial.replace(/^00/, "+").replace(/^0/, "+49").replace(/^\+/, "");
+  const linkStyle = "color:#792F24;text-decoration:underline;font-weight:650";
+  const contactRows = [
+    row("Name", escapeHtml(data.name)),
+    row("Telefon", dial ? `<a href="tel:${dial}" style="${linkStyle}">${escapeHtml(data.phone)}</a>` : escapeHtml(data.phone)),
+    data.email && row("E-Mail", `<a href="mailto:${escapeHtml(encodeURIComponent(data.email).replace("%40", "@"))}" style="${linkStyle}">${escapeHtml(data.email)}</a>`),
+    data.plz && row("Ort / PLZ", escapeHtml(data.plz)),
   ].join("");
+  const uploadLinks = data.fileUrls.map(attachmentLink).filter(Boolean).map((url, i) =>
+    `<li style="margin:8px 0"><a href="${url}" style="${linkStyle}">Hochgeladene Datei ${i + 1} öffnen</a></li>`);
+  const attachmentNames = (data.fileAttachments || []).map(file =>
+    `<li style="margin:8px 0">${escapeHtml(file.filename)} (E-Mail-Anhang)</li>`);
+  const files = [...uploadLinks, ...attachmentNames].join("");
+  const requested = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
 
-  // Zugang & Parken rows
-  const zugangRows = [
-    row("Parkmöglichkeit", details.parking || details.currentParking || details.pickupParking),
-    row("Zugang", details.access),
-    row("Abholung nötig", details.needPickup === "Ja" ? `Ja - ${details.pickupAddress || ""}` : details.needPickup),
-  ].join("");
-
-  // Files/Attachments section - with debug logging
-  console.log("Email builder - fileUrls received:", JSON.stringify(data.fileUrls));
-  let filesHtml = "";
-  const validUrls = (data.fileUrls || []).filter(url => url && url.trim() !== "");
-  console.log("Email builder - valid URLs count:", validUrls.length);
-
-  if (validUrls.length > 0) {
-    const fileItems = validUrls.map((url, i) => {
-      const isImage = /\.(jpg|jpeg|png|webp|gif)/i.test(url);
-      console.log(`File ${i+1}: ${url} - isImage: ${isImage}`);
-      if (isImage) {
-        return `<div style="margin:6px 0;">
-          <a href="${url}" target="_blank" style="display:block;">
-            <img src="${url}" alt="Bild ${i+1}" style="max-width:100%;max-height:150px;border-radius:6px;border:1px solid #333;"/>
-          </a>
-        </div>`;
-      }
-      return `<div style="margin:4px 0;">
-        <a href="${url}" target="_blank" style="color:#60a5fa;font-size:12px;text-decoration:none;">📎 Datei ${i+1} herunterladen</a>
-      </div>`;
-    }).join("");
-
-    filesHtml = `<div style="background:#1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #3b82f6;">
-      <div style="font-weight:600;color:#60a5fa;margin-bottom:6px;font-size:12px;">📎 Anhänge (${validUrls.length})</div>
-      ${fileItems}
-    </div>`;
-  }
-
-  // Message section
-  const messageHtml = data.message
-    ? `<div style="background:#1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #6b7280;">
-        <div style="font-weight:600;color:#9ca3af;margin-bottom:6px;font-size:12px;">💬 Nachricht</div>
-        <div style="color:#d1d5db;font-size:12px;white-space:pre-wrap;line-height:1.4;">${data.message}</div>
-      </div>`
-    : "";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#0f0f1a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:380px;margin:0 auto;background:#0f0f1a;">
-
-  <!-- Header -->
-  <div style="background:linear-gradient(135deg,#ef4444,#dc2626);padding:14px;text-align:center;">
-    <div style="font-size:16px;font-weight:700;color:#fff;">📬 Neue Anfrage</div>
-    <div style="color:rgba(255,255,255,0.8);font-size:10px;margin-top:2px;">mobelmontage-nurnberg.de</div>
+  return `<!doctype html>
+<html lang="de" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neue Anfrage · ${service}</title></head>
+<body style="margin:0;background:#F7F5EF;color:#202A22;font:16px/1.5 Arial,sans-serif">
+  <div lang="de" dir="ltr" style="max-width:580px;margin:0 auto;padding:18px;overflow-wrap:anywhere">
+    <header style="padding:22px;background:#202A22;color:#F7F5EF;border-radius:16px">
+      <p style="margin:0 0 12px;font-size:14px;color:#E4E9DE">Möbelmontage Nürnberg</p>
+      <h1 style="margin:0;font-size:25px;line-height:1.2">${service} angefragt</h1>
+      <p style="margin:8px 0 0;font-size:14px;color:#E4E9DE">${requested} Uhr · ${escapeHtml(data.reference)}${getPriority(data) === "DRINGEND" ? " · Express gewünscht" : ""}</p>
+    </header>
+    ${section("Kontakt", table(contactRows) + (dial ? `<p style="margin:14px 0 0"><a href="tel:${dial}" style="display:inline-block;margin:0 10px 8px 0;padding:10px 16px;border-radius:9px;background:#B72F20;color:#fff;text-decoration:none;font-weight:bold">Anrufen</a><a href="https://wa.me/${waPhone}" style="${linkStyle}">WhatsApp öffnen</a></p>` : ""))}
+    ${section("Angaben zum Auftrag", table(detailRows))}
+    ${section("Nachricht", data.message ? `<p style="margin:0;white-space:pre-wrap">${escapeHtml(data.message)}</p>` : "")}
+    ${section("Dateien", files ? `<ul style="margin:0;padding-left:20px">${files}</ul>` : "")}
   </div>
-
-  <!-- Content -->
-  <div style="padding:10px;">
-
-    <!-- Service Badges -->
-    <div style="text-align:center;margin-bottom:10px;">
-      <span style="display:inline-block;background:#166534;color:#4ade80;padding:5px 12px;border-radius:12px;font-weight:600;font-size:12px;margin:2px;">${serviceName}</span>
-      ${isDringend ? `<span style="display:inline-block;background:#854d0e;color:#fbbf24;padding:5px 12px;border-radius:12px;font-weight:600;font-size:12px;margin:2px;">⚡ DRINGEND</span>` : ""}
-    </div>
-
-    <!-- Kontaktdaten -->
-    <div style="background:#1a1a2e;border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #f472b6;">
-      <div style="font-weight:600;color:#f472b6;margin-bottom:6px;font-size:12px;">👤 Kontaktdaten</div>
-      <table style="width:100%;">
-        ${row("Name", data.name)}
-        <tr>
-          <td style="padding:3px 0;color:#9ca3af;font-size:13px;width:42%;">Telefon:</td>
-          <td style="padding:3px 0;font-size:13px;">
-            <a href="tel:${data.phone}" style="color:#f472b6;text-decoration:none;font-weight:600;">📱 ${data.phone}</a>
-          </td>
-        </tr>
-        ${data.email ? `<tr>
-          <td style="padding:3px 0;color:#9ca3af;font-size:13px;">E-Mail:</td>
-          <td style="padding:3px 0;font-size:13px;">
-            <a href="mailto:${data.email}" style="color:#f472b6;text-decoration:none;">${data.email}</a>
-          </td>
-        </tr>` : ""}
-        ${data.plz ? row("Stadt", "📍 " + data.plz) : ""}
-      </table>
-    </div>
-
-    <!-- Quick Buttons -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
-      <tr>
-        <td width="48%" style="padding-right:4px;">
-          <a href="tel:${data.phone}" style="display:block;background:transparent;border:2px solid #f472b6;color:#f472b6;padding:8px;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">
-            📞 Jetzt anrufen
-          </a>
-        </td>
-        <td width="48%" style="padding-left:4px;">
-          <a href="https://wa.me/${data.phone.replace(/\D/g, "")}" style="display:block;background:#22c55e;color:#fff;padding:8px;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">
-            💬 WhatsApp
-          </a>
-        </td>
-      </tr>
-    </table>
-
-    <!-- Terminwunsch -->
-    ${section("📅", "Terminwunsch", "#22c55e", terminRows)}
-
-    <!-- Service Details -->
-    ${section(detailsIcon, detailsTitle, "#22c55e", detailsRows)}
-
-    <!-- Zugang & Parken -->
-    ${section("🅿️", "Zugang & Parken", "#a855f7", zugangRows)}
-
-    <!-- Files -->
-    ${filesHtml}
-
-    <!-- Message -->
-    ${messageHtml}
-
-  </div>
-
-  <!-- Footer -->
-  <div style="padding:8px;text-align:center;color:#6b7280;font-size:10px;border-top:1px solid #1a1a2e;">
-    ${new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" })}
-  </div>
-
-</div>
-</body>
-</html>`;
+</body></html>`;
 }
 
 // Remove non-ASCII characters for email fields
@@ -320,7 +169,7 @@ function toAscii(str: string): string {
     .replace(/Ä/g, 'Ae')
     .replace(/Ö/g, 'Oe')
     .replace(/Ü/g, 'Ue')
-    .replace(/[^\x00-\x7F]/g, '');
+    .replace(/[^\x20-\x7E]/g, '');
 }
 
 // Parse and sanitize the from email field
@@ -403,7 +252,7 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
     };
   }
 
-  const serviceName = SERVICE_NAMES[data.service] || data.service;
+  const serviceName = (Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service);
   const priority = getPriority(data);
 
   // Get sanitized from email
@@ -418,7 +267,7 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
     const emailPayload: Record<string, unknown> = {
       from: safeFrom,
       to: [recipientEmail],
-      subject: `${priority === "DRINGEND" ? "[DRINGEND] " : ""}${safeServiceName} - ${safeName}`,
+      subject: `${priority === "DRINGEND" ? "[DRINGEND] " : ""}${safeServiceName} - ${safeName} [${data.reference}]`,
       html: buildEmailHtml(data),
       reply_to: data.email || undefined,
     };
@@ -460,32 +309,63 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.service || !body.name || !body.phone) {
+    if (!body || [body.service, body.name, body.phone].some(value => typeof value !== "string" || !value.trim())) {
       return NextResponse.json(
         { success: false, error: "Pflichtfelder fehlen (Dienstleistung, Name und Telefon sind erforderlich)." },
         { status: 400 },
       );
     }
 
-    // Log received data for debugging
-    console.log("Received contact form:", {
-      service: body.service,
-      name: body.name,
-      fileUrls: body.fileUrls,
-      fileUrlsCount: body.fileUrls?.length || 0,
-      fileAttachmentsCount: body.fileAttachments?.length || 0,
-    });
+    const details = body.serviceDetails || {};
+    const fileUrls = body.fileUrls || [];
+    const attachments: FileAttachment[] = body.fileAttachments || [];
+    const optionalFields = [body.email, body.plz, body.message];
+    if (optionalFields.some(value => value != null && typeof value !== "string")
+      || typeof details !== "object" || Array.isArray(details)
+      || Object.values(details).some(value => typeof value !== "string")
+      || !Array.isArray(fileUrls) || fileUrls.some(value => typeof value !== "string")
+      || !Array.isArray(attachments) || attachments.some(file => !file || typeof file.filename !== "string" || typeof file.content !== "string")) {
+      return NextResponse.json({ success: false, error: "Bitte prüfen Sie die Angaben und Anhänge." }, { status: 400 });
+    }
 
+    // Cached versions of the form used small image data URLs when storage was unavailable.
+    const links: string[] = [];
+    for (const url of fileUrls) {
+      const inline = /^data:image\/(jpeg|png|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(url);
+      if (inline) {
+        attachments.push({ filename: `Bild-${attachments.length + 1}.${inline[1].toLowerCase()}`, content: inline[2] });
+      } else if (attachmentLink(url)) {
+        links.push(url);
+      } else if (url) {
+        return NextResponse.json({ success: false, error: "Ein Dateilink ist ungültig. Bitte wählen Sie die Datei erneut." }, { status: 400 });
+      }
+    }
+
+    const maxAttachmentBytes = 3 * 1024 * 1024;
+    if (attachments.length + links.length > 8) {
+      return NextResponse.json({ success: false, error: "Sie können bis zu fünf Fotos und drei Pläne mitsenden." }, { status: 400 });
+    }
+    let totalBytes = 0;
+    for (const file of attachments) {
+      if (!file.filename.trim() || !file.content || file.content.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(file.content)) {
+        return NextResponse.json({ success: false, error: "Ein Anhang ist unvollständig. Bitte wählen Sie ihn erneut aus." }, { status: 400 });
+      }
+      totalBytes += Buffer.byteLength(file.content, "base64");
+    }
+    if (totalBytes > maxAttachmentBytes) {
+      return NextResponse.json({ success: false, error: "Alle Anhänge zusammen dürfen nach der Vorbereitung höchstens 3 MB groß sein." }, { status: 413 });
+    }
     const data: ContactFormData = {
+      reference: `MN-${crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
       service: body.service,
       name: body.name,
       email: body.email || "",
       phone: body.phone,
       plz: body.plz || "",
       message: body.message || "",
-      fileUrls: body.fileUrls || [],
-      fileAttachments: body.fileAttachments || [],
-      serviceDetails: body.serviceDetails || {},
+      fileUrls: links,
+      fileAttachments: attachments,
+      serviceDetails: details,
       gclid: body.gclid,
       quelle: body.quelle,
       seite: body.seite,
@@ -522,6 +402,7 @@ export async function POST(request: NextRequest) {
     console.log("Contact form delivered successfully via email");
     return NextResponse.json({
       success: true,
+      reference: data.reference,
       imagesReceived: data.fileUrls.length,
       attachmentsReceived: data.fileAttachments?.length || 0,
       notificationsSent: {

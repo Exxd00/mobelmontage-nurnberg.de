@@ -14,8 +14,8 @@
   border-radius: 10px;
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  box-shadow: 0 3px 18px #162c2417;
-  font: 500 13px/1.2 "Segoe UI", system-ui, sans-serif;
+  box-shadow: 0 3px 15px #202a2218;
+  font: 550 .8125rem/1.2 var(--studio-body);
 }
 .details { text-decoration: underline; text-underline-offset: 3px; }
 .choices { display: flex; gap: 5px; }
@@ -23,8 +23,8 @@
 .choices button {
   min-width: 70px;
   padding: 5px 8px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+  border: 1px solid var(--studio-secondary-border);
+  border-radius: .55rem;
   background: hsl(var(--background));
 }
 .prompt button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }

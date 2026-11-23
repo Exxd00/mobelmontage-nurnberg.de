@@ -1,0 +1,5 @@
+.form { display: grid; gap: .95rem; max-width: 39rem; margin: 1.5rem 0 3rem; padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--studio-line); border-radius: 1rem; background: var(--studio-paper); }
+.form label { display: grid; gap: .35rem; color: var(--studio-ink); font-weight: 650; }
+.form input, .form textarea { border: 1px solid var(--studio-muted); border-radius: .5rem; padding: .6rem .8rem; font: inherit; font-weight: 400; color: var(--studio-ink); background: var(--studio-paper); }
+.form button { justify-self: start; background: #e8412c; color: #0e130e; min-height: 46px; padding: .7rem 1.2rem; font-weight: 700; border-radius: 9px; }
+.form button:disabled { cursor: progress; opacity: .75; }

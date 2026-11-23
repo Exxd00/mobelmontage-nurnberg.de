@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap, AlertCircle, Phone, MessageCircle } from "lucide-react";
 import { trackFormStart, trackFormSubmit, trackLead } from "@/lib/analytics";
@@ -17,9 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { services, businessInfo } from "@/lib/data";
-import { supabase, BUCKET_NAME, generateFilePath, getPublicUrl, isSupabaseConfigured } from "@/lib/supabase";
-import { uploadToImgbb, isImgbbConfigured, isImageFile as isImgbbImage } from "@/lib/imgbb";
-import { compressFiles, formatFileSize, calculateSavings, isImageFile, type CompressionProgress } from "@/lib/compression";
+import { compressFiles, formatFileSize, isImageFile } from "@/lib/compression";
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_DOC_TYPES = [
@@ -28,6 +26,8 @@ const ALLOWED_DOC_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Base64 expands direct email attachments by a third inside the serverless JSON request.
+const MAX_EMAIL_ATTACHMENT_BYTES = 3 * 1024 * 1024;
 const MAX_IMAGES = 5;
 const MAX_PLANS = 3;
 
@@ -67,10 +67,6 @@ interface UploadedFile {
   file: File;
   preview: string;
   type: 'image' | 'pdf' | 'word' | 'other';
-  uploading?: boolean;
-  uploaded?: boolean;
-  url?: string;
-  error?: string;
 }
 
 // Get file type category
@@ -87,9 +83,9 @@ function FileIcon({ type }: { type: UploadedFile['type'] }) {
     case 'image':
       return <FileImage className="w-5 h-5" />;
     case 'pdf':
-      return <FileText className="w-5 h-5 text-red-500" />;
+      return <FileText className="w-5 h-5 text-primary" />;
     case 'word':
-      return <FileText className="w-5 h-5 text-blue-500" />;
+      return <FileText className="w-5 h-5 text-primary" />;
     default:
       return <File className="w-5 h-5" />;
   }
@@ -129,7 +125,7 @@ function ToggleButton({
             onClick={() => handleChange(option.value)}
             className={`flex-1 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all min-h-[44px] active:scale-[0.98] ${
               value === option.value
-                ? 'border-primary bg-primary text-white shadow-md'
+                ? 'border-primary bg-primary text-primary-foreground shadow-md'
                 : 'border-border bg-background hover:border-primary/50 active:bg-primary/5'
             }`}
           >
@@ -156,7 +152,7 @@ function ToggleButton({
           onClick={() => handleChange(option.value)}
           className={`px-3 sm:px-4 py-3.5 sm:py-3 rounded-xl border-2 text-sm font-medium transition-all min-h-[48px] active:scale-[0.98] ${
             value === option.value
-              ? 'border-primary bg-primary text-white shadow-md'
+              ? 'border-primary bg-primary text-primary-foreground shadow-md'
               : 'border-border bg-background hover:border-primary/50 active:bg-primary/5'
           }`}
         >
@@ -170,7 +166,7 @@ function ToggleButton({
 // Section Header Component - Mobile Responsive
 function SectionHeader({ title, color = "primary" }: { title: string; color?: string }) {
   return (
-    <div className={`text-sm sm:text-base font-semibold mb-3 ${color === "primary" ? "text-primary" : "text-orange-600"}`}>
+    <div className={`text-sm sm:text-base font-semibold mb-3 ${color === "primary" ? "text-primary" : "text-primary"}`}>
       {title}
     </div>
   );
@@ -187,16 +183,6 @@ interface ProgressState {
 function ProgressBar({ state }: { state: ProgressState }) {
   if (state.stage === 'idle') return null;
 
-  const getStageColor = () => {
-    switch (state.stage) {
-      case 'compressing': return 'bg-blue-500';
-      case 'uploading': return 'bg-orange-500';
-      case 'sending': return 'bg-green-500';
-      case 'done': return 'bg-green-600';
-      default: return 'bg-primary';
-    }
-  };
-
   const getStageIcon = () => {
     switch (state.stage) {
       case 'compressing': return <Zap className="w-4 h-4 animate-pulse" />;
@@ -211,16 +197,16 @@ function ProgressBar({ state }: { state: ProgressState }) {
     <div className="bg-muted/50 rounded-xl p-4 border border-border space-y-3 animate-in fade-in slide-in-from-bottom-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${getStageColor()} text-white`}>
+          <div className="p-1.5 rounded-lg bg-primary text-primary-foreground">
             {getStageIcon()}
           </div>
-          <span className="font-medium text-sm">{state.message}</span>
+          <span role="status" className="font-medium text-sm">{state.message}</span>
         </div>
         <span className="text-sm font-bold text-primary">{Math.round(state.progress)}%</span>
       </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden">
+      <div role="progressbar" aria-label={state.message} aria-valuenow={Math.round(state.progress)} aria-valuemin={0} aria-valuemax={100} className="h-2 bg-muted rounded-full overflow-hidden">
         <div
-          className={`h-full ${getStageColor()} transition-all duration-300 ease-out rounded-full`}
+          className="h-full bg-primary transition-all duration-300 ease-out rounded-full"
           style={{ width: `${state.progress}%` }}
         />
       </div>
@@ -241,65 +227,23 @@ function fileToBase64(file: File | Blob): Promise<string> {
   });
 }
 
-// Upload file - tries imgbb first (for images), then Supabase
-async function uploadFile(file: File | Blob, fileName: string): Promise<string> {
-  const isImage = isImageFile(file as File) || /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName);
-
-  // Try imgbb first for images (simpler, no bucket config needed)
-  if (isImage && isImgbbConfigured()) {
-    console.log('Uploading to imgbb:', fileName);
-    const url = await uploadToImgbb(file, fileName);
-    if (url) {
-      console.log('imgbb upload success:', url);
-      return url;
-    }
-  }
-
-  // Fallback to Supabase
-  if (supabase && isSupabaseConfigured()) {
-    console.log('Uploading to Supabase:', fileName);
-    const filePath = generateFilePath(fileName);
-
-    const { error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-
-    if (error) {
-      console.error('Supabase upload failed:', error.message);
-      return '';
-    }
-
-    const url = getPublicUrl(filePath);
-    console.log('Supabase upload success:', url);
-    return url;
-  }
-
-  // No upload service configured - convert to base64 data URL for small files
-  console.warn('No upload service configured, using base64');
-  if (file instanceof Blob && file.size < 500 * 1024) { // < 500KB
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  console.error('File too large and no upload service configured');
-  return '';
-}
-
-export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false }: { initialService?: string; initialDetails?: string; embedded?: boolean } = {}) {
+export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false, businessInquiry = false }: {
+  initialService?: string; initialDetails?: string; embedded?: boolean; businessInquiry?: boolean;
+} = {}) {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const planInputRef = useRef<HTMLInputElement>(null);
 
+  const preparing = useRef(false);
+  const [preparingFiles, setPreparingFiles] = useState(false);
+  const [attachmentProgress, setAttachmentProgress] = useState<ProgressState>({ stage: "idle", progress: 0, message: "" });
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     service: initialService,
     details: initialDetails,
+    company: "",
+    worksite: "",
+    timeSlot: "",
     name: "",
     phone: "",
     email: "",
@@ -535,62 +479,54 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     }
   }, [formData, hasStartedForm]);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    setError("");
-
-    if (images.length + selectedFiles.length > MAX_IMAGES) {
-      setError(`Maximal ${MAX_IMAGES} Bilder erlaubt`);
+  const prepareFiles = async (event: React.ChangeEvent<HTMLInputElement>, group: "images" | "plans") => {
+    const selection = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!selection.length || preparing.current) return;
+    const photos = group === "images";
+    const limit = photos ? MAX_IMAGES : MAX_PLANS;
+    if ((photos ? images : plans).length + selection.length > limit) {
+      setError(`Bitte wählen Sie höchstens ${limit} ${photos ? "Bilder" : "Pläne"}.`);
       return;
     }
-
-    for (const file of selectedFiles) {
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        setError(`Nur Bilder erlaubt: ${file.name}`);
-        continue;
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`Datei zu groß (max. 10MB): ${file.name}`);
-        continue;
-      }
-
-      const preview = URL.createObjectURL(file);
-      setImages((prev) => [...prev, { file, preview, type: 'image', uploading: false }]);
-    }
-
-    if (imageInputRef.current) {
-      imageInputRef.current.value = '';
-    }
-  };
-
-  const handlePlanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
     setError("");
-
-    if (plans.length + selectedFiles.length > MAX_PLANS) {
-      setError(`Maximal ${MAX_PLANS} Pläne erlaubt`);
-      return;
-    }
-
-    for (const file of selectedFiles) {
-      if (!ALLOWED_DOC_TYPES.includes(file.type) && !ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        setError(`Dateityp nicht erlaubt: ${file.name}`);
-        continue;
+    preparing.current = true;
+    setPreparingFiles(true);
+    try {
+      for (const file of selection) {
+        const allowed = ALLOWED_IMAGE_TYPES.includes(file.type) || (!photos && ALLOWED_DOC_TYPES.includes(file.type));
+        if (!allowed || file.size > MAX_FILE_SIZE) throw new Error(`${file.name}: Bitte wählen Sie ein unterstütztes Format mit höchstens 10 MB.`);
       }
-
-      if (file.size > MAX_FILE_SIZE) {
-        setError(`Datei zu groß (max. 10MB): ${file.name}`);
-        continue;
+      const documents = [...plans.map(plan => plan.file), ...selection].filter(file => !isImageFile(file));
+      if (documents.reduce((sum, file) => sum + file.size, 0) > MAX_EMAIL_ATTACHMENT_BYTES) {
+        throw new Error("PDF- und Word-Dateien dürfen zusammen höchstens 3 MB groß sein. Bitte verkleinern Sie den Plan oder senden Sie einzelne Seiten als Bild.");
       }
-
-      const fileType = getFileType(file.type);
-      const preview = fileType === 'image' ? URL.createObjectURL(file) : '';
-      setPlans((prev) => [...prev, { file, preview, type: fileType, uploading: false }]);
-    }
-
-    if (planInputRef.current) {
-      planInputRef.current.value = '';
+      const prepared = await compressFiles(selection, progress => {
+        setAttachmentProgress({
+          stage: "compressing", progress: progress.progress, message: "Dateien werden vorbereitet",
+          details: `${progress.currentFileIndex} von ${progress.totalFiles} · ${progress.currentFile}`,
+        });
+      }, { maxWidth: 1720, maxHeight: 1720, quality: 0.76, maxSizeMB: 0.4 });
+      const allBytes = [...images, ...plans].reduce((sum, item) => sum + item.file.size, 0)
+        + prepared.reduce((sum, file) => sum + file.size, 0);
+      if (allBytes > MAX_EMAIL_ATTACHMENT_BYTES) {
+        throw new Error("Alle Anhänge dürfen nach der Bildkomprimierung zusammen höchstens 3 MB groß sein. Bitte wählen Sie weniger Dateien oder verkleinern Sie Ihren Plan.");
+      }
+      const files = prepared.map(file => ({
+        file,
+        type: getFileType(file.type),
+        preview: photos ? URL.createObjectURL(file) : "",
+      }));
+      const save = photos ? setImages : setPlans;
+      save(current => [...current, ...files]);
+      const bytes = prepared.reduce((sum, file) => sum + file.size, 0);
+      setAttachmentProgress({ stage: "done", progress: 100, message: "Auswahl bereit zum Senden", details: formatFileSize(bytes) });
+    } catch (err) {
+      setAttachmentProgress({ stage: "idle", progress: 0, message: "" });
+      setError(err instanceof Error ? err.message : "Die Dateien konnten nicht vorbereitet werden.");
+    } finally {
+      preparing.current = false;
+      setPreparingFiles(false);
     }
   };
 
@@ -633,260 +569,23 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     scrollToElement("form-step-indicator", 20);
   };
 
-  // Build message from all fields
-  const buildMessage = () => {
-    let message = "";
-
-    if (formData.service === "kuechenmontage") {
-      const labels: Record<string, string> = {
-        urgency: "Dringlichkeit",
-        timeframe: "Gewünschter Zeitraum",
-        dayTime: "Bevorzugte Tageszeit",
-        brand: "Marke",
-        form: "Form",
-        cabinetCount: "Anzahl Schränke",
-        kitchenOnSite: "Küche vor Ort",
-        needPickup: "Abholung gewünscht",
-        pickupAddress: "Abholadresse",
-        kitchenCondition: "Zustand der Küche",
-        countertopType: "Arbeitsplatten-Typ",
-        hasOldKitchen: "Alte Küche vorhanden",
-        oldKitchenAction: "Alte Küche",
-        hasWaterSystem: "Wassersystem",
-        waterConnection: "Wasseranschluss",
-        electricConnection: "Elektroanschluss",
-        cutCountertop: "Platte zuschneiden",
-        parking: "Parkmöglichkeit",
-        access: "Zugang zur Wohnung",
-      };
-
-      for (const [key, label] of Object.entries(labels)) {
-        const value = kitchenFields[key as keyof typeof kitchenFields];
-        if (value) {
-          message += `${label}: ${value}\n`;
-        }
-      }
-    }
-
-    if (formData.service === "moebelmontage") {
-      const labels: Record<string, string> = {
-        urgency: "Dringlichkeit",
-        timeframe: "Gewünschter Zeitraum",
-        dayTime: "Bevorzugte Tageszeit",
-        furnitureType: "Möbelart",
-        brand: "Marke",
-        itemCount: "Anzahl Möbelstücke",
-        furnitureOnSite: "Möbel vor Ort",
-        needPickup: "Abholung gewünscht",
-        pickupAddress: "Abholadresse",
-        furnitureCondition: "Zustand der Möbel",
-        parking: "Parkmöglichkeit",
-        access: "Zugang zur Wohnung",
-      };
-
-      for (const [key, label] of Object.entries(labels)) {
-        const value = furnitureFields[key as keyof typeof furnitureFields];
-        if (value) {
-          message += `${label}: ${value}\n`;
-        }
-      }
-    }
-
-    if (formData.service === "lieferungen") {
-      const labels: Record<string, string> = {
-        urgency: "Dringlichkeit",
-        timeframe: "Gewünschter Zeitraum",
-        dayTime: "Bevorzugte Tageszeit",
-        pickupAddress: "Abholadresse",
-        pickupFloor: "Etage (Abholung)",
-        pickupParking: "Parken (Abholung)",
-        deliveryAddress: "Lieferadresse",
-        deliveryFloor: "Etage (Lieferung)",
-        deliveryParking: "Parken (Lieferung)",
-        itemDescription: "Beschreibung der Gegenstände",
-        itemCount: "Anzahl Gegenstände",
-        itemSize: "Größe/Gewicht",
-        needHelpers: "Helfer benötigt",
-      };
-
-      for (const [key, label] of Object.entries(labels)) {
-        const value = deliveryFields[key as keyof typeof deliveryFields];
-        if (value) {
-          message += `${label}: ${value}\n`;
-        }
-      }
-    }
-
-    if (formData.service === "umzuege") {
-      const labels: Record<string, string> = {
-        urgency: "Dringlichkeit",
-        moveDate: "Umzugsdatum",
-        dayTime: "Bevorzugte Tageszeit",
-        currentAddress: "Aktuelle Adresse",
-        currentFloor: "Etage (aktuell)",
-        currentParking: "Parken (aktuell)",
-        currentRooms: "Anzahl Zimmer",
-        currentSize: "Wohnfläche",
-        hasElevator: "Aufzug vorhanden (aktuell)",
-        newAddress: "Neue Adresse",
-        newFloor: "Etage (neu)",
-        newParking: "Parken (neu)",
-        newHasElevator: "Aufzug vorhanden (neu)",
-        hasHeavyItems: "Schwere Gegenstände",
-        heavyItemsDescription: "Beschreibung schwere Gegenstände",
-        needPacking: "Verpackung benötigt",
-        needStorage: "Zwischenlagerung benötigt",
-      };
-
-      for (const [key, label] of Object.entries(labels)) {
-        const value = movingFields[key as keyof typeof movingFields];
-        if (value) {
-          message += `${label}: ${value}\n`;
-        }
-      }
-    }
-
-    if (formData.service === "entruempelung") {
-      const labels: Record<string, string> = {
-        urgency: "Dringlichkeit",
-        timeframe: "Gewünschter Zeitraum",
-        dayTime: "Bevorzugte Tageszeit",
-        address: "Adresse",
-        floor: "Etage",
-        parking: "Parkmöglichkeit",
-        hasElevator: "Aufzug vorhanden",
-        areaType: "Art des Bereichs",
-        areaSize: "Fläche",
-        roomCount: "Anzahl Räume",
-        itemTypes: "Art der Gegenstände",
-        hasHeavyItems: "Schwere Gegenstände",
-        needsDisposal: "Entsorgung benötigt",
-        specialItems: "Besondere Gegenstände",
-      };
-
-      for (const [key, label] of Object.entries(labels)) {
-        const value = clearanceFields[key as keyof typeof clearanceFields];
-        if (value) {
-          message += `${label}: ${value}\n`;
-        }
-      }
-    }
-
-    if (formData.details) {
-      message += `\n---\n\nWeitere Details:\n${formData.details}`;
-    }
-
-    return message || formData.details;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
 
     try {
-      const uploadedImageUrls: string[] = [];
       const fileAttachments: { filename: string; content: string }[] = [];
 
-      const allFiles = [...images, ...plans];
-      const filesToProcess = allFiles.map(f => f.file);
-
-      // Separate images and documents
-      const imageFiles: File[] = [];
-      const documentFiles: File[] = [];
-
-      for (const file of filesToProcess) {
-        if (isImageFile(file)) {
-          imageFiles.push(file);
-        } else {
-          documentFiles.push(file);
-        }
-      }
-
-      console.log(`Processing ${imageFiles.length} images and ${documentFiles.length} documents`);
-
-      // Process images - compress and upload to imgbb
-      if (imageFiles.length > 0) {
+      const files = [...images, ...plans].map(item => item.file);
+      for (const [index, file] of files.entries()) {
         setProgressState({
-          stage: 'compressing',
-          progress: 0,
-          message: 'Bilder werden komprimiert...',
-          details: `0 von ${imageFiles.length} Bilder`,
+          stage: "uploading", progress: Math.round(index / files.length * 100),
+          message: "E-Mail-Anhänge werden vorbereitet", details: file.name,
         });
-
-        const compressedImages = await compressFiles(
-          imageFiles,
-          (progress) => {
-            setProgressState({
-              stage: 'compressing',
-              progress: progress.progress,
-              message: 'Bilder werden komprimiert...',
-              details: `${progress.currentFileIndex} von ${progress.totalFiles} - ${progress.currentFile}`,
-            });
-          },
-          { maxWidth: 1920, maxHeight: 1080, quality: 0.7, maxSizeMB: 1 }
-        );
-
-        // Show compression savings briefly
-        const savings = calculateSavings(imageFiles, compressedImages);
-        if (savings.savedPercent > 5) {
-          setProgressState({
-            stage: 'compressing',
-            progress: 100,
-            message: 'Komprimierung abgeschlossen!',
-            details: `Gespart: ${formatFileSize(savings.savedSize)} (${Math.round(savings.savedPercent)}%)`,
-          });
-          await new Promise(resolve => setTimeout(resolve, 800));
-        }
-
-        // Upload images to imgbb
-        for (let i = 0; i < compressedImages.length; i++) {
-          const file = compressedImages[i];
-          const originalFile = imageFiles[i];
-
-          setProgressState({
-            stage: 'uploading',
-            progress: (i / compressedImages.length) * 100,
-            message: 'Bilder werden hochgeladen...',
-            details: `${i + 1} von ${compressedImages.length} - ${originalFile.name}`,
-          });
-
-          try {
-            const fileName = originalFile.name.replace(/\.[^.]+$/, '.jpg');
-            const url = await uploadFile(file, fileName);
-            if (url) {
-              uploadedImageUrls.push(url);
-              console.log(`Image uploaded: ${url}`);
-            }
-          } catch {
-            console.error(`Failed to upload image ${originalFile.name}`);
-          }
-        }
-      }
-
-      // Process documents - convert to base64 for email attachment
-      if (documentFiles.length > 0) {
-        setProgressState({
-          stage: 'uploading',
-          progress: 50,
-          message: 'Dateien werden vorbereitet...',
-          details: `${documentFiles.length} Dateien`,
-        });
-
-        for (const file of documentFiles) {
-          try {
-            const base64 = await fileToBase64(file);
-            // Remove data URL prefix to get pure base64
-            const content = base64.replace(/^data:[^;]+;base64,/, '');
-            fileAttachments.push({
-              filename: file.name,
-              content: content,
-            });
-            console.log(`Document prepared as attachment: ${file.name}`);
-          } catch {
-            console.error(`Failed to process document ${file.name}`);
-          }
-        }
+        const filename = file.type === "image/jpeg" ? file.name.replace(/\.[^.]+$/, ".jpg") : file.name;
+        const base64 = await fileToBase64(file);
+        fileAttachments.push({ filename, content: base64.slice(base64.indexOf(",") + 1) });
       }
 
       // Stage 3: Send form
@@ -899,30 +598,27 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       // Get tracking data (GCLID, source, page)
       const tracking = getTrackingData();
 
-      // Debug log
-      console.log("Image URLs to send:", uploadedImageUrls);
-      console.log("File attachments to send:", fileAttachments.length);
+      const serviceFields = {
+        kuechenmontage: kitchenFields,
+        moebelmontage: furnitureFields,
+        lieferungen: deliveryFields,
+        umzuege: movingFields,
+        entruempelung: clearanceFields,
+      };
 
       const submitData = {
         service: formData.service,
-        message: buildMessage(),
+        message: formData.details,
+        plz: formData.worksite,
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
-        fileUrls: uploadedImageUrls,
+        fileUrls: [],
         fileAttachments: fileAttachments,
-        serviceDetails:
-          formData.service === "kuechenmontage"
-            ? kitchenFields
-            : formData.service === "moebelmontage"
-            ? furnitureFields
-            : formData.service === "lieferungen"
-            ? deliveryFields
-            : formData.service === "umzuege"
-            ? movingFields
-            : formData.service === "entruempelung"
-            ? clearanceFields
-            : {},
+        serviceDetails: {
+          ...serviceFields[formData.service as keyof typeof serviceFields],
+          ...(businessInquiry ? { company: formData.company, timeSlot: formData.timeSlot } : {}),
+        },
         gclid: tracking.gclid,
         quelle: tracking.source,
         seite: tracking.page,
@@ -978,6 +674,8 @@ export default function QuickContactForm({ initialService = "", initialDetails =
 
       // One-time access flag for the thank-you page (checked + cleared there)
       try {
+        sessionStorage.removeItem("inquiry_reference");
+        if (typeof result.reference === "string") sessionStorage.setItem("inquiry_reference", result.reference);
         sessionStorage.setItem("form_submitted", "true");
       } catch {
         setSentInline(true);
@@ -1156,7 +854,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               <div className="space-y-2">
                 <Label className="text-sm leading-relaxed">Abholadresse eingeben *</Label>
                 <Input
-                  placeholder="z.B. IKEA Nürnberg, Musterstraße 123..."
+                  placeholder="Straße, Hausnummer, PLZ und Ort"
                   value={furnitureFields.pickupAddress}
                   onChange={(e) => setFurnitureFields({ ...furnitureFields, pickupAddress: e.target.value })}
                   className="input-focus"
@@ -1289,7 +987,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
         <div className="space-y-2">
           <Label className="text-sm leading-relaxed">Abholadresse *</Label>
           <Input
-            placeholder="z.B. IKEA Nürnberg, Musterstraße 123..."
+            placeholder="Straße, Hausnummer, PLZ und Ort"
             value={deliveryFields.pickupAddress}
             onChange={(e) => setDeliveryFields({ ...deliveryFields, pickupAddress: e.target.value })}
             className="input-focus"
@@ -1393,7 +1091,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
         <div className="space-y-2">
           <Label className="text-sm leading-relaxed">Was soll geliefert werden? *</Label>
           <Input
-            placeholder="z.B. PAX Schrank, Küche, Sofa..."
+            placeholder="Welche Gegenstände sollen abgeholt werden?"
             value={deliveryFields.itemDescription}
             onChange={(e) => setDeliveryFields({ ...deliveryFields, itemDescription: e.target.value })}
             className="input-focus"
@@ -1439,7 +1137,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Helfer beim Tragen benötigt?</Label>
+          <Label className="text-sm leading-relaxed">Soll unser Team die Gegenstände in die Wohnung tragen?</Label>
           <ToggleButton
             options={[
               { value: "Ja", label: "Ja" },
@@ -1673,7 +1371,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       </div>
 
       {/* Zusätzliche Services */}
-      <div className="bg-orange-50 dark:bg-orange-950/20 rounded-xl p-3 sm:p-4 border border-orange-200 dark:border-orange-900/30 space-y-3 sm:space-y-4">
+      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
         <SectionHeader title="Zusätzliche Services" color="orange" />
 
         <div className="space-y-2">
@@ -1917,7 +1615,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       </div>
 
       {/* Gegenstände */}
-      <div className="bg-orange-50 dark:bg-orange-950/20 rounded-xl p-3 sm:p-4 border border-orange-200 dark:border-orange-900/30 space-y-3 sm:space-y-4">
+      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
         <SectionHeader title="Gegenstände" color="orange" />
 
         <div className="space-y-2">
@@ -2136,7 +1834,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               <div className="space-y-2">
                 <Label className="text-sm leading-relaxed">Abholadresse eingeben *</Label>
                 <Input
-                  placeholder="z.B. IKEA Nürnberg, Musterstraße 123..."
+                  placeholder="Straße, Hausnummer, PLZ und Ort"
                   value={kitchenFields.pickupAddress}
                   onChange={(e) => setKitchenFields({ ...kitchenFields, pickupAddress: e.target.value })}
                   className="input-focus"
@@ -2172,7 +1870,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       </div>
 
       {/* Alte Küche */}
-      <div className="bg-orange-50 dark:bg-orange-950/20 rounded-xl p-3 sm:p-4 border border-orange-200 dark:border-orange-900/30 space-y-3 sm:space-y-4">
+      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
         <SectionHeader title="Alte Küche" color="orange" />
 
         <div className="space-y-2">
@@ -2346,7 +2044,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                 Kostenloses Angebot anfordern
               </h2>
               <p className="text-muted-foreground text-sm md:text-base">
-                In nur 2 Schritten zum verbindlichen Festpreis-Angebot
+                Beschreiben Sie Ihr Vorhaben. Nach der Prüfung erhalten Sie Ihr persönliches Angebot.
               </p>
             </div>
 
@@ -2354,7 +2052,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
             <div id="form-step-indicator" className="flex items-center justify-center gap-4 mb-8">
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  currentStep >= 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                  currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                   {currentStep > 1 ? <Check className="w-4 h-4" /> : '1'}
                 </div>
@@ -2365,7 +2063,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               <div className="w-12 h-0.5 bg-muted" />
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                  currentStep >= 2 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
+                  currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                   2
                 </div>
@@ -2428,7 +2126,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                   {/* Images Upload */}
                   <div className="space-y-2">
                     <Label>Bilder (optional, max. {MAX_IMAGES})</Label>
-                    <p className="text-xs text-muted-foreground">Werden automatisch komprimiert</p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, WebP oder GIF bis 10 MB pro Bild. Große Bilder werden beim Auswählen verkleinert. Alle Anhänge zusammen dürfen danach höchstens 3 MB groß sein.</p>
                     <div className="flex flex-wrap gap-3 mt-2">
                       {images.map((img, index) => (
                         <div key={index} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border bg-muted">
@@ -2436,6 +2134,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           <button
                             type="button"
                             onClick={() => removeImage(index)}
+                            aria-label={`${img.file.name} entfernen`}
                             className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center"
                           >
                             <X className="w-3 h-3" />
@@ -2456,9 +2155,10 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                     <input
                       ref={imageInputRef}
                       type="file"
-                      accept="image/*"
+                      accept={ALLOWED_IMAGE_TYPES.join(",")}
                       multiple
-                      onChange={handleImageUpload}
+                      onChange={event => prepareFiles(event, "images")}
+                      disabled={preparingFiles}
                       className="hidden"
                     />
                   </div>
@@ -2466,7 +2166,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                   {/* Plans Upload */}
                   <div className="space-y-2">
                     <Label>Pläne (optional, max. {MAX_PLANS})</Label>
-                    <p className="text-xs text-muted-foreground">Küchenplanung, Grundrisse (PDF, Bilder)</p>
+                    <p className="text-xs text-muted-foreground">Bilder, PDF oder Word. Nach der Bildkomprimierung sind insgesamt 3 MB für alle Anhänge möglich. Sie werden mit Ihrer Anfrage direkt an unser Team gesendet.</p>
                     <div className="flex flex-wrap gap-3 mt-2">
                       {plans.map((plan, index) => (
                         <div key={index} className="relative flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted">
@@ -2475,6 +2175,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           <button
                             type="button"
                             onClick={() => removePlan(index)}
+                            aria-label={`${plan.file.name} entfernen`}
                             className="w-4 h-4 bg-destructive text-white rounded-full flex items-center justify-center"
                           >
                             <X className="w-2.5 h-2.5" />
@@ -2495,23 +2196,26 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                     <input
                       ref={planInputRef}
                       type="file"
-                      accept=".pdf,.doc,.docx,image/*"
+                      accept={[...ALLOWED_DOC_TYPES, ...ALLOWED_IMAGE_TYPES].join(",")}
                       multiple
-                      onChange={handlePlanUpload}
+                      onChange={event => prepareFiles(event, "plans")}
+                      disabled={preparingFiles}
                       className="hidden"
                     />
                   </div>
 
+                    <ProgressBar state={attachmentProgress} />
                   </details>
                   {/* Error */}
                   {error && (
-                    <p className="text-sm text-destructive">{error}</p>
+                    <p role="alert" className="text-sm text-destructive">{error}</p>
                   )}
 
                   {/* Next Button */}
                   <Button
                     type="button"
                     onClick={goToStep2}
+                    disabled={preparingFiles}
                     className="w-full btn-primary py-3 rounded-xl"
                   >
                     Weiter zu Kontaktdaten
@@ -2523,13 +2227,34 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               {/* Step 2: Contact Details */}
               {currentStep === 2 && (
                 <div className="space-y-5">
+                  {businessInquiry && (
+                    <div className="space-y-2">
+                      <Label htmlFor="quick-company">Firma oder Organisation *</Label>
+                      <Input id="quick-company" autoComplete="organization" value={formData.company}
+                        onChange={e => setFormData({ ...formData, company: e.target.value })} required disabled={isSubmitting} />
+                    </div>
+                  )}
+                  {(businessInquiry || ["kuechenmontage", "moebelmontage"].includes(formData.service)) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="quick-worksite">Einsatzort (PLZ und Ort)</Label>
+                      <Input id="quick-worksite" value={formData.worksite}
+                        onChange={e => setFormData({ ...formData, worksite: e.target.value })} disabled={isSubmitting} />
+                    </div>
+                  )}
+                  {businessInquiry && (
+                    <div className="space-y-2">
+                      <Label htmlFor="quick-timeslot">Zugangs- oder Lieferzeitfenster (optional)</Label>
+                      <Input id="quick-timeslot" value={formData.timeSlot}
+                        onChange={e => setFormData({ ...formData, timeSlot: e.target.value })} disabled={isSubmitting} />
+                    </div>
+                  )}
                   {/* Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="quick-name">Ihr Name *</Label>
+                    <Label htmlFor="quick-name">{businessInquiry ? "Ansprechperson" : "Ihr Name"} *</Label>
                     <Input
                       id="quick-name"
                       type="text"
-                      placeholder="Max Mustermann"
+                      autoComplete="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
@@ -2544,7 +2269,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                     <Input
                       id="quick-phone"
                       type="tel"
-                      placeholder="+49 123 456789"
+                      autoComplete="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       required
@@ -2559,7 +2284,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                     <Input
                       id="quick-email"
                       type="email"
-                      placeholder="ihre@email.de"
+                      autoComplete="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="input-focus"
@@ -2599,7 +2324,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           href={`https://wa.me/${businessInfo.whatsapp.replace(/\D/g, "")}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-2 flex-1 rounded-lg bg-[#25D366] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#20bd5a] transition-colors"
+                          className="inline-flex items-center justify-center gap-2 flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-colors"
                         >
                           <MessageCircle className="w-4 h-4" />
                           WhatsApp

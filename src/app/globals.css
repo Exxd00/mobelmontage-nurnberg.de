@@ -1,68 +1,111 @@
-/* Optimized Font Loading - use font-display: swap for better performance */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/fonts/bricolage.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Sans";
+  src: url("/fonts/dm-sans.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+:root {
+  color-scheme: light;
+  --studio-heading: "Bricolage Grotesque", Arial, sans-serif;
+  --studio-body: "DM Sans", Arial, sans-serif;
+  --studio-ink: #202a22;
+  --studio-paper: #f7f5ef;
+  --studio-sage: #9caf88;
+  --studio-tomato: #e8412c;
+  --studio-tomato-ink: #0e130e;
+  --studio-green: #2d4731;
+  --studio-red: #792f24;
+  --studio-muted: #435044;
+  --studio-soft: #e4e9de;
+  --studio-line: #cfd5c9;
+  --studio-focus: #442c27;
+  --studio-card: #fbfaf6;
+  --studio-band: #202a22;
+  --studio-on-green: #f7f5ef;
+  --studio-footer: #ebeee5;
+  --studio-button-border: #ae3425;
+  --studio-secondary-border: #62765b;
+  --studio-wrap: min(1324px, calc(100% - clamp(40px, 10vw, 160px)));
+  --studio-cta-fill: linear-gradient(155deg, #ff846a7a, transparent 52%), var(--studio-tomato);
+  --studio-section-space: clamp(3.4rem, 6.5vw, 6rem);
+}
+.dark {
+  color-scheme: dark;
+  --studio-ink: #f7f5ef;
+  --studio-paper: #1b231d;
+  --studio-sage: #324536;
+  --studio-green: #c7d7b6;
+  --studio-red: #ffad98;
+  --studio-muted: #c3cdbc;
+  --studio-soft: #2b382e;
+  --studio-line: #506251;
+  --studio-focus: #f3c49c;
+  --studio-card: #263229;
+  --studio-band: #131d16;
+  --studio-footer: #232d25;
+  --studio-secondary-border: #a2b798;
+}
+@media (max-width: 780px) {
+  :root { --studio-wrap: calc(100% - 32px); --studio-section-space: 2.15rem; }
+}
+html.bigtype { font-size: 118%; }
+
 @layer base {
   :root {
-    /* Brand Colors - Orange Theme */
-    --brand-primary: 155 34% 22%;
-    --brand-secondary: 156 30% 27%;
-    --brand-accent: 32 37% 44%;
-
-    --background: 50 28% 96%;
-    --foreground: 153 22% 13%;
-    --card: 0 0% 100%;
-    --card-foreground: 20 10% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 10% 10%;
-    --primary: 155 34% 22%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 30 30% 96%;
-    --secondary-foreground: 20 10% 10%;
-    --muted: 30 20% 96%;
-    --muted-foreground: 150 8% 32%;
-    --accent: 30 100% 97%;
-    --accent-foreground: 24 95% 30%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 30 20% 85%;
-    --input: 30 20% 85%;
-    --ring: 155 34% 22%;
-    --radius: 0.75rem;
-
-    /* Chart Colors */
-    --chart-1: 155 34% 22%;
-    --chart-2: 30 80% 55%;
-    --chart-3: 35 70% 50%;
-    --chart-4: 20 60% 45%;
-    --chart-5: 15 50% 40%;
-
-    /* Custom Properties */
-    --header-height: 72px;
-    --footer-height: 400px;
+    --brand-primary: 129.23 22.41% 22.75%;
+    --brand-secondary: 89.23 19.60% 60.98%;
+    --brand-accent: 6.70 80.34% 54.12%;
+    --background: 45.00 33.33% 95.29%;
+    --foreground: 132.00 13.51% 14.51%;
+    --card: 48.00 38.46% 97.45%;
+    --card-foreground: 132.00 13.51% 14.51%;
+    --popover: 48.00 38.46% 97.45%;
+    --popover-foreground: 132.00 13.51% 14.51%;
+    --primary: 129.23 22.41% 22.75%;
+    --primary-foreground: 45.00 33.33% 95.29%;
+    --secondary: 87.27 20.00% 89.22%;
+    --secondary-foreground: 132.00 13.51% 14.51%;
+    --muted: 90.00 18.18% 91.37%;
+    --muted-foreground: 124.62 8.84% 28.82%;
+    --accent: 87.27 20.00% 89.22%;
+    --accent-foreground: 7.76 54.14% 30.78%;
+    --destructive: 5.96 70.23% 42.16%;
+    --destructive-foreground: 0.00 0.00% 100.00%;
+    --border: 90.00 12.50% 81.18%;
+    --input: 102.00 9.09% 56.86%;
+    --ring: 10.34 27.10% 20.98%;
   }
-
+  :root { --radius: .85rem; --header-height: 72px; --footer-height: 400px; }
   .dark {
-    --background: 154 17% 10%;
-    --foreground: 30 20% 98%;
-    --card: 153 16% 14%;
-    --card-foreground: 30 20% 98%;
-    --popover: 20 14% 10%;
-    --popover-foreground: 30 20% 98%;
-    --primary: 145 31% 68%;
-    --primary-foreground: 154 26% 11%;
-    --secondary: 20 14% 15%;
-    --secondary-foreground: 30 20% 98%;
-    --muted: 20 14% 15%;
-    --muted-foreground: 30 15% 75%;
-    --accent: 20 14% 15%;
-    --accent-foreground: 24 95% 70%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 20 14% 22%;
-    --input: 20 14% 22%;
-    --ring: 155 34% 22%;
+    --background: 135.00 12.90% 12.16%;
+    --foreground: 45.00 33.33% 95.29%;
+    --card: 135.00 13.64% 17.25%;
+    --card-foreground: 45.00 33.33% 95.29%;
+    --popover: 135.00 13.64% 17.25%;
+    --popover-foreground: 45.00 33.33% 95.29%;
+    --primary: 89.09 29.20% 77.84%;
+    --primary-foreground: 132.86 22.58% 12.16%;
+    --secondary: 133.85 13.13% 19.41%;
+    --secondary-foreground: 45.00 33.33% 95.29%;
+    --muted: 133.85 13.13% 19.41%;
+    --muted-foreground: 95.29 14.53% 77.06%;
+    --accent: 132.63 15.97% 23.33%;
+    --accent-foreground: 12.23 100.00% 79.80%;
+    --destructive: 8.67 100.00% 82.35%;
+    --destructive-foreground: 6.32 57.58% 12.94%;
+    --border: 123.33 10.11% 34.90%;
+    --input: 120.00 8.66% 49.80%;
+    --ring: 27.59 78.38% 78.24%;
   }
 }
 
@@ -78,7 +121,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-inter, system-ui), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--studio-body);
   }
 
   /* Safe area utility for PWA/notch devices */
@@ -100,7 +143,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-inter, system-ui), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--studio-heading);
     @apply font-bold tracking-tight;
   }
 
@@ -111,7 +154,8 @@
 
   /* Focus visible for keyboard navigation */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-primary;
+    outline: 3px solid var(--studio-focus);
+    outline-offset: 3px;
   }
 
   /* Skip to main content link for accessibility */
@@ -238,7 +282,7 @@
 
   /* Focus Visible */
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
 
   /* Accessibility: Touch target minimum size */
@@ -329,8 +373,8 @@
 
 /* Selection */
 ::selection {
-  background: hsl(var(--primary) / 0.2);
-  color: hsl(var(--primary));
+  background: #facebe;
+  color: #202a22;
 }
 
 /* Print Styles */

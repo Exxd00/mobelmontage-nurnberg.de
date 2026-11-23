@@ -5,8 +5,8 @@
   "description": "Möbelmontage, Küchenmontage und Möbeltransport in Nürnberg und Umgebung.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f6f0",
-  "theme_color": "#183d32",
+  "background_color": "#F7F5EF",
+  "theme_color": "#F7F5EF",
   "scope": "/",
   "lang": "de",
   "categories": [

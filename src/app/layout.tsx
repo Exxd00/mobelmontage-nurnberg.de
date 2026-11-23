@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { businessInfo } from "@/lib/data";
 import CookieConsent from "@/components/CookieConsent";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import ContactActions from "@/components/layout/ContactActions";
 import "./globals.css";
 
 const site = "https://mobelmontage-nurnberg.de";
@@ -12,10 +13,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f6f0" },
-    { media: "(prefers-color-scheme: dark)", color: "#172e27" },
-  ],
+  themeColor: "#F7F5EF",
 };
 
 export const metadata: Metadata = {
@@ -45,6 +43,7 @@ const business = {
   legalName: businessInfo.name,
   url: site,
   image: site + "/og-image.jpg",
+  logo: site + "/icons/icon-512x512.png",
   telephone: businessInfo.phone,
   email: businessInfo.email,
   address: {
@@ -59,7 +58,7 @@ const business = {
   areaServed: ["Nürnberg", "Fürth", "Erlangen", "Schwabach"],
 };
 
-const setTheme = "try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch{}";
+const setTheme = "try{var h=document.documentElement;if(localStorage.getItem('theme')==='dark')h.classList.add('dark');if(localStorage.getItem('bigtype')==='true')h.classList.add('bigtype')}catch{}";
 const registerOffline = "if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})},{once:true})";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -74,6 +73,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {children}
         <CookieConsent />
         <AnalyticsProvider />
+        <ContactActions />
         {process.env.NODE_ENV === "production" && <script dangerouslySetInnerHTML={{ __html: registerOffline }} />}
       </body>
     </html>

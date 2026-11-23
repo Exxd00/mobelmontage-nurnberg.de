@@ -1,0 +1,8 @@
+.dialog { position: fixed; inset: 0; margin: auto; max-width: min(25rem, calc(100% - 2rem)); padding: 1.5rem; border-radius: 1rem; border: 1px solid var(--studio-line); background: var(--studio-paper); color: var(--studio-ink); }
+.dialog::backdrop { background: rgb(14 19 14 / 65%); }
+.dialog h2 { color: var(--studio-green); font: 650 1.55rem/1.1 var(--studio-heading); }
+.dialog p { margin-block: 1rem; }
+.actions { display: flex; gap: .65rem; flex-wrap: wrap; }
+.actions a, .actions button { display: inline-flex; align-items: center; min-height: 44px; border-radius: 9px; padding: .6rem 1rem; font-weight: 650; }
+.actions a { background: #e8412c; color: #0e130e; text-decoration: none; }
+.actions button { border: 1px solid var(--studio-line); }
