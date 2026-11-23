@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getQuoteFields, isContactPhone, needsWorksitePostcode, validateQuoteScope } from "@/lib/quote-requirements";
+import { buildOperatorEmail, legacyAttachmentUrl } from "@/lib/operator-email";
+import { isContactPhone, needsWorksitePostcode, validateQuoteScope } from "@/lib/quote-requirements";
 
 interface FileAttachment {
   filename: string;
@@ -73,83 +74,6 @@ async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
     console.error("Sheets error:", e);
     return false;
   }
-}
-
-function escapeHtml(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-}
-
-function attachmentLink(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-    if (["https:", "http:"].includes(url.protocol) && !url.username && !url.password) {
-      return escapeHtml(url.href);
-    }
-  } catch {
-    // Invalid attachment addresses have no link in the email.
-  }
-}
-
-function buildEmailHtml(data: ContactFormData): string {
-  const service = escapeHtml((Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service));
-  const section = (heading: string, content: string) => content ? `
-    <section style="padding:18px 0;border-top:1px solid #CFD5C9">
-      <h2 style="margin:0 0 12px;font-size:19px;line-height:1.25;color:#2D4731">${heading}</h2>
-      ${content}
-    </section>` : "";
-  const row = (label: string, value: string) => `
-    <tr>
-      <th scope="row" style="width:42%;padding:6px 12px 6px 0;text-align:left;vertical-align:top;font-size:14px;font-weight:500;color:#435044">${escapeHtml(label)}</th>
-      <td style="padding:6px 0;vertical-align:top;overflow-wrap:anywhere">${value}</td>
-    </tr>`;
-  const table = (rows: string) => rows ? `<table width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;border-collapse:collapse">${rows}</table>` : "";
-  const groups = new Map<string, string[]>();
-  const fields = data.service === "rueckruf"
-    ? [{ key: "company", label: "Firma oder Organisation", group: "Rückrufwunsch" },
-       { key: "timeSlot", label: "Erreichbar im Zeitfenster", group: "Rückrufwunsch" }]
-    : getQuoteFields(data.service, data.serviceDetails, data.businessInquiry);
-  for (const field of fields) {
-    const value = data.serviceDetails[field.key] || (field.key === "specification" ? "Siehe beigefügte Datei(en)." : "");
-    if (!value) continue;
-    const rows = groups.get(field.group) || [];
-    rows.push(row(field.label, escapeHtml(value).replace(/\r?\n/g, "<br>")));
-    groups.set(field.group, rows);
-  }
-  const quoteSections = Array.from(groups, ([heading, rows]) => section(heading, table(rows.join("")))).join("");
-  const phone = data.phone.replace(/[^\d+]/g, "");
-  const dial = /^\+?\d{4,20}$/.test(phone) ? phone : "";
-  const waPhone = dial.replace(/^00/, "+").replace(/^0/, "+49").replace(/^\+/, "");
-  const linkStyle = "color:#792F24;text-decoration:underline;font-weight:650";
-  const contactRows = [
-    row("Name", escapeHtml(data.name)),
-    row("Telefon", dial ? `<a href="tel:${dial}" style="${linkStyle}">${escapeHtml(data.phone)}</a>` : escapeHtml(data.phone)),
-    data.email && row("E-Mail", `<a href="mailto:${escapeHtml(encodeURIComponent(data.email).replace("%40", "@"))}" style="${linkStyle}">${escapeHtml(data.email)}</a>`),
-    data.plz && row("Ort / PLZ", escapeHtml(data.plz)),
-  ].join("");
-  const uploadLinks = data.fileUrls.map(attachmentLink).filter(Boolean).map((url, i) =>
-    `<li style="margin:8px 0"><a href="${url}" style="${linkStyle}">Hochgeladene Datei ${i + 1} öffnen</a></li>`);
-  const attachmentNames = (data.fileAttachments || []).map(file =>
-    `<li style="margin:8px 0">${escapeHtml(file.filename)} (E-Mail-Anhang)</li>`);
-  const files = [...uploadLinks, ...attachmentNames].join("");
-  const requested = new Date().toLocaleString("de-DE", { timeZone: "Europe/Berlin" });
-
-  return `<!doctype html>
-<html lang="de" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Neue Anfrage · ${service}</title></head>
-<body style="margin:0;background:#F7F5EF;color:#202A22;font:16px/1.5 Arial,sans-serif">
-  <div lang="de" dir="ltr" style="max-width:580px;margin:0 auto;padding:18px;overflow-wrap:anywhere">
-    <header style="padding:22px;background:#202A22;color:#F7F5EF;border-radius:16px">
-      <p style="margin:0 0 12px;font-size:14px;color:#E4E9DE">Möbelmontage Nürnberg</p>
-      <h1 style="margin:0;font-size:25px;line-height:1.2">${service} angefragt</h1>
-      <p style="margin:8px 0 0;font-size:14px;color:#E4E9DE">${requested} Uhr · ${escapeHtml(data.reference)}${getPriority(data) === "DRINGEND" ? " · Express gewünscht" : ""}</p>
-    </header>
-    ${section("Kontakt", table(contactRows) + (dial ? `<p style="margin:14px 0 0"><a href="tel:${dial}" style="display:inline-block;margin:0 10px 8px 0;padding:10px 16px;border-radius:9px;background:#B72F20;color:#fff;text-decoration:none;font-weight:bold">Anrufen</a><a href="https://wa.me/${waPhone}" style="${linkStyle}">WhatsApp öffnen</a></p>` : ""))}
-    ${quoteSections}
-    ${section("Nachricht", data.message ? `<p style="margin:0;white-space:pre-wrap">${escapeHtml(data.message)}</p>` : "")}
-    ${section("Dateien", files ? `<ul style="margin:0;padding-left:20px">${files}</ul>` : "")}
-  </div>
-</body></html>`;
 }
 
 // Remove non-ASCII characters for email fields
@@ -261,7 +185,7 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
       from: safeFrom,
       to: [recipientEmail],
       subject: `${priority === "DRINGEND" ? "[DRINGEND] " : ""}${safeServiceName} - ${safeName} [${data.reference}]`,
-      html: buildEmailHtml(data),
+      ...buildOperatorEmail(data, { serviceName, express: priority === "DRINGEND" }),
       reply_to: data.email || undefined,
     };
 
@@ -337,7 +261,7 @@ export async function POST(request: NextRequest) {
       const inline = /^data:image\/(jpeg|png|webp|gif);base64,([a-z0-9+/=]+)$/i.exec(url);
       if (inline) {
         attachments.push({ filename: `Bild-${attachments.length + 1}.${inline[1].toLowerCase()}`, content: inline[2] });
-      } else if (attachmentLink(url)) {
+      } else if (legacyAttachmentUrl(url)) {
         links.push(url);
       } else if (url) {
         return NextResponse.json({ success: false, error: "Ein Dateilink ist ungültig. Bitte wählen Sie die Datei erneut." }, { status: 400 });
