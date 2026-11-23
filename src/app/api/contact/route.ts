@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getQuoteFields, isContactPhone, needsWorksitePostcode, validateQuoteScope } from "@/lib/quote-requirements";
 
 interface FileAttachment {
   filename: string;
@@ -13,9 +14,10 @@ interface ContactFormData {
   phone: string;
   plz: string;
   message: string;
-  fileUrls: string[]; // Image URLs (from imgbb)
-  fileAttachments?: FileAttachment[]; // PDF/DOC files as base64
-  serviceDetails?: Record<string, string>;
+  fileUrls: string[]; // Links from earlier versions of the form.
+  fileAttachments: FileAttachment[];
+  serviceDetails: Record<string, string>;
+  businessInquiry: boolean;
   gclid?: string | null;
   quelle?: string;
   seite?: string;
@@ -28,6 +30,7 @@ const SERVICE_NAMES: Record<string, string> = {
   kuechenmontage: "Küchenmontage",
   umzuege: "Umzüge",
   entruempelung: "Entrümpelung",
+  andere: "Individuelle Anfrage",
 };
 
 // Get priority from service details
@@ -39,7 +42,7 @@ function getPriority(data: ContactFormData): string {
   if (urgency.toLowerCase().includes("normal")) {
     return "Normal";
   }
-  return "Flexibel";
+  return data.serviceDetails.timeframe && data.serviceDetails.timeframe !== "Flexibel nach Vereinbarung" ? "Normal" : "Flexibel";
 }
 
 // Send to Google Sheets - Only essential columns (no phone).
@@ -72,26 +75,6 @@ async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
   }
 }
 
-const DETAIL_LABELS: Record<string, string> = {
-  urgency: "Dringlichkeit", timeframe: "Zeitraum", dayTime: "Tageszeit", moveDate: "Umzugsdatum",
-  brand: "Marke", form: "Küchenform", cabinetCount: "Schrankanzahl", kitchenOnSite: "Küche vor Ort",
-  needPickup: "Abholung gewünscht", pickupAddress: "Abholadresse", kitchenCondition: "Zustand der Küche",
-  countertopType: "Arbeitsplatte", hasOldKitchen: "Alte Küche vorhanden", oldKitchenAction: "Arbeiten an der alten Küche",
-  hasWaterSystem: "Wassersystem", waterConnection: "Wasseranschluss", electricConnection: "Elektroanschluss",
-  cutCountertop: "Platte zuschneiden", parking: "Parkmöglichkeit", access: "Zugang",
-  furnitureType: "Möbelart", itemCount: "Anzahl", furnitureOnSite: "Möbel vor Ort", furnitureCondition: "Zustand der Möbel",
-  pickupFloor: "Abholetage", pickupParking: "Parken bei der Abholung", deliveryAddress: "Lieferadresse",
-  deliveryFloor: "Lieferetage", deliveryParking: "Parken bei der Lieferung", itemDescription: "Gegenstände",
-  itemSize: "Größe und Gewicht", needHelpers: "Trageleistung gewünscht", currentAddress: "Bisherige Adresse",
-  currentFloor: "Bisherige Etage", currentParking: "Parken am Auszug", currentRooms: "Anzahl Zimmer",
-  currentSize: "Wohnfläche", hasElevator: "Aufzug", newAddress: "Neue Adresse", newFloor: "Neue Etage",
-  newParking: "Parken am Einzug", newHasElevator: "Aufzug am Einzug", hasHeavyItems: "Schwere Gegenstände",
-  heavyItemsDescription: "Beschreibung schwerer Gegenstände", needPacking: "Verpackung gewünscht",
-  needStorage: "Zwischenlagerung gewünscht", address: "Adresse", floor: "Etage", areaType: "Bereich",
-  areaSize: "Fläche", roomCount: "Anzahl Räume", itemTypes: "Art der Gegenstände", needsDisposal: "Entsorgung",
-  specialItems: "Besondere Gegenstände", company: "Firma oder Organisation", timeSlot: "Zugangs- oder Lieferzeitfenster",
-};
-
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -121,9 +104,19 @@ function buildEmailHtml(data: ContactFormData): string {
       <td style="padding:6px 0;vertical-align:top;overflow-wrap:anywhere">${value}</td>
     </tr>`;
   const table = (rows: string) => rows ? `<table width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;border-collapse:collapse">${rows}</table>` : "";
-  const detailRows = Object.entries(data.serviceDetails || {})
-    .filter(([, value]) => typeof value === "string" && value.trim() && value !== "-")
-    .map(([key, value]) => row(Object.hasOwn(DETAIL_LABELS, key) ? DETAIL_LABELS[key] : key, escapeHtml(value))).join("");
+  const groups = new Map<string, string[]>();
+  const fields = data.service === "rueckruf"
+    ? [{ key: "company", label: "Firma oder Organisation", group: "Rückrufwunsch" },
+       { key: "timeSlot", label: "Erreichbar im Zeitfenster", group: "Rückrufwunsch" }]
+    : getQuoteFields(data.service, data.serviceDetails, data.businessInquiry);
+  for (const field of fields) {
+    const value = data.serviceDetails[field.key] || (field.key === "specification" ? "Siehe beigefügte Datei(en)." : "");
+    if (!value) continue;
+    const rows = groups.get(field.group) || [];
+    rows.push(row(field.label, escapeHtml(value).replace(/\r?\n/g, "<br>")));
+    groups.set(field.group, rows);
+  }
+  const quoteSections = Array.from(groups, ([heading, rows]) => section(heading, table(rows.join("")))).join("");
   const phone = data.phone.replace(/[^\d+]/g, "");
   const dial = /^\+?\d{4,20}$/.test(phone) ? phone : "";
   const waPhone = dial.replace(/^00/, "+").replace(/^0/, "+49").replace(/^\+/, "");
@@ -152,7 +145,7 @@ function buildEmailHtml(data: ContactFormData): string {
       <p style="margin:8px 0 0;font-size:14px;color:#E4E9DE">${requested} Uhr · ${escapeHtml(data.reference)}${getPriority(data) === "DRINGEND" ? " · Express gewünscht" : ""}</p>
     </header>
     ${section("Kontakt", table(contactRows) + (dial ? `<p style="margin:14px 0 0"><a href="tel:${dial}" style="display:inline-block;margin:0 10px 8px 0;padding:10px 16px;border-radius:9px;background:#B72F20;color:#fff;text-decoration:none;font-weight:bold">Anrufen</a><a href="https://wa.me/${waPhone}" style="${linkStyle}">WhatsApp öffnen</a></p>` : ""))}
-    ${section("Angaben zum Auftrag", table(detailRows))}
+    ${quoteSections}
     ${section("Nachricht", data.message ? `<p style="margin:0;white-space:pre-wrap">${escapeHtml(data.message)}</p>` : "")}
     ${section("Dateien", files ? `<ul style="margin:0;padding-left:20px">${files}</ul>` : "")}
   </div>
@@ -305,9 +298,18 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
   }
 }
 
+function isQuoteAttachment(file: FileAttachment): boolean {
+  const header = Buffer.from(file.content.slice(0, 32), "base64");
+  const hex = header.toString("hex");
+  const ascii = header.toString("latin1");
+  return hex.startsWith("ffd8ff") || hex.startsWith("89504e470d0a1a0a")
+    || /^(GIF87a|GIF89a|RIFF[\s\S]{4}WEBP|%PDF-)/.test(ascii)
+    || hex.startsWith("d0cf11e0a1b11ae1") || (hex.startsWith("504b0304") && /\.docx$/i.test(file.filename));
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     if (!body || [body.service, body.name, body.phone].some(value => typeof value !== "string" || !value.trim())) {
       return NextResponse.json(
@@ -316,12 +318,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const details = body.serviceDetails || {};
+    const details: Record<string, string> = body.serviceDetails ?? {};
     const fileUrls = body.fileUrls || [];
     const attachments: FileAttachment[] = body.fileAttachments || [];
-    const optionalFields = [body.email, body.plz, body.message];
+    const optionalFields = [body.email, body.plz, body.message, body.quelle, body.seite, body.gclid];
     if (optionalFields.some(value => value != null && typeof value !== "string")
       || typeof details !== "object" || Array.isArray(details)
+      || (body.businessInquiry != null && typeof body.businessInquiry !== "boolean")
       || Object.values(details).some(value => typeof value !== "string")
       || !Array.isArray(fileUrls) || fileUrls.some(value => typeof value !== "string")
       || !Array.isArray(attachments) || attachments.some(file => !file || typeof file.filename !== "string" || typeof file.content !== "string")) {
@@ -355,17 +358,30 @@ export async function POST(request: NextRequest) {
     if (totalBytes > maxAttachmentBytes) {
       return NextResponse.json({ success: false, error: "Alle Anhänge zusammen dürfen nach der Vorbereitung höchstens 3 MB groß sein." }, { status: 413 });
     }
+    if (!isContactPhone(body.phone)) return NextResponse.json({ success: false, field: "phone", error: "Bitte geben Sie eine erreichbare Telefonnummer mit Vorwahl an." }, { status: 400 });
+    const email = body.email?.trim() || "";
+    if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return NextResponse.json({ success: false, field: "email", error: "Bitte die E-Mail-Adresse prüfen." }, { status: 400 });
+    const businessInquiry = body.businessInquiry === true;
+    const service = body.service.trim();
+    const serviceDetails = Object.fromEntries(Object.entries(details).map(([key, value]) => [key, value.trim()]));
+    let plz = body.plz?.trim() || "";
+    if (service !== "rueckruf") {
+      const issue = validateQuoteScope({ service, plz, serviceDetails, fileCount: attachments.filter(isQuoteAttachment).length, businessInquiry });
+      if (issue) return NextResponse.json({ success: false, field: issue.field, error: issue.message }, { status: 400 });
+      if (!needsWorksitePostcode(service)) plz = serviceDetails.deliveryAddress?.match(/\b\d{5}\b/)?.[0] || "";
+    }
     const data: ContactFormData = {
       reference: `MN-${crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
-      service: body.service,
-      name: body.name,
-      email: body.email || "",
-      phone: body.phone,
-      plz: body.plz || "",
+      service,
+      name: body.name.trim(),
+      email,
+      phone: body.phone.trim(),
+      plz,
       message: body.message || "",
       fileUrls: links,
       fileAttachments: attachments,
-      serviceDetails: details,
+      serviceDetails,
+      businessInquiry,
       gclid: body.gclid,
       quelle: body.quelle,
       seite: body.seite,

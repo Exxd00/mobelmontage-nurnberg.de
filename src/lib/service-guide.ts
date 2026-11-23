@@ -18,7 +18,7 @@ export const serviceBasics: Record<
     intro:
       "Wir holen Möbel am vereinbarten Ort ab und bringen sie bis zum vereinbarten Platz.",
     preparation:
-      "Bitte nennen Sie Abhol- und Lieferadresse, Anzahl und Maße der Packstücke sowie Stockwerk und Aufzug an beiden Adressen.",
+      "Bitte nennen Sie Abhol- und Lieferadresse, Art und Anzahl der Packstücke sowie den Zugang an beiden Orten. Maße, Etage und Aufzug helfen uns, den Trageweg zu planen.",
     question: "Welche Angaben braucht eine Lieferanfrage?",
     answer:
       "Mit den beiden Adressen, Packmaßen und den Tragewegen lässt sich einschätzen, wie viel Platz im Fahrzeug und vor Ort nötig ist.",
@@ -29,7 +29,7 @@ export const serviceBasics: Record<
     intro:
       "Wir bauen Möbel nach Anleitung auf und richten Türen und Auszüge am vorgesehenen Standort aus.",
     preparation:
-      "Schicken Sie die Modellnamen oder Produktlinks, Stückzahlen und ein Foto vom Stellplatz. Bei hohen Schränken ist die Raumhöhe wichtig.",
+      "Beschreiben Sie Art, Stückzahl und Ausführung Ihrer Möbel. Zur eindeutigen Zuordnung helfen Modellname, Produktlink, Foto oder Plan. Bei hohen Schränken ist auch die Raumhöhe wichtig.",
     question: "Kann ich mehrere Möbel gemeinsam anfragen?",
     answer:
       "Ja. Führen Sie die Möbel in einer Liste auf und nennen Sie Stückzahl und Modell. So kann das Angebot den gesamten Aufbau berücksichtigen.",
@@ -40,7 +40,7 @@ export const serviceBasics: Record<
     intro:
       "Wir setzen Küchen aus einzelnen Schränken zusammen, richten sie aus und passen Fronten, Auszüge und Arbeitsplatten an.",
     preparation:
-      "Für die Anfrage helfen Küchenplan, Wandmaße und Fotos der Leitungen und Geräte. Nennen Sie Geräteanschlüsse oder Ausschnitte, die im Angebot berücksichtigt werden sollen.",
+      "Nennen Sie Küchenform, Schrankzahl, gewünschte Anschlüsse und Arbeiten an der Arbeitsplatte. Wenn ein Plan vorliegt, können Sie ihn zusammen mit Fotos der Stellwände beifügen.",
     question: "Welche Unterlagen helfen bei der Küchenmontage?",
     answer:
       "Grundriss, Schrankplan und Geräteliste zeigen, wie die Küche aufgebaut wird. Fotos verdeutlichen vorhandene Anschlüsse und Übergänge.",

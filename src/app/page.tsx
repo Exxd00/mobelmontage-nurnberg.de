@@ -22,7 +22,7 @@ const services = [
 
 const questions = [
   ["Was kostet die Möbelmontage in Nürnberg?", "Die Möbelmontage beginnt bei 59 €, die Küchenmontage bei 149 € und die Möbellieferung bei 39 €. Der konkrete Preis hängt von Umfang, Anfahrt und Zugang ab. Mit Ihrer Anfrage erhalten Sie ein Angebot für Ihr Vorhaben."],
-  ["Welche Angaben braucht das Montageteam?", "Nennen Sie den Ort, die Möbelstücke oder den Küchenhersteller und Ihren Wunschtermin. Hilfreich sind Fotos, Artikelnummern oder ein Küchenplan. Für eine Lieferung ergänzen Sie Abholadresse, Zieladresse und Stockwerk."],
+  ["Welche Angaben braucht das Montageteam?", "Für den Möbelaufbau helfen Modell, Stückzahl und Ausführung oder ein aussagekräftiges Foto bzw. ein Plan. Bei Küchen fragen wir nach Form, Schrankzahl, Anschlüssen und Arbeitsplatte. Für eine Lieferung brauchen wir die Packstücke, beide Adressen und die Tragewege. Ergänzen Sie den gewünschten Zeitraum, damit wir Aufwand und Termin gemeinsam prüfen können."],
   ["Kann ich eine IKEA-Küche montieren lassen?", "Ja. Geben Sie das Küchensystem und den Plan an, etwa bei einer IKEA METOD Küche. Schreiben Sie dazu, welche Schränke, Geräte und Arbeitsplatten vorhanden sind und welche Arbeiten Sie benötigen."],
   ["Wo kann ich abgeschlossene Montagen sehen?", "Im Projektbereich finden Sie vier Messeküchen. Jedes Projekt zeigt den Montagezustand und das Ergebnis mit einer Beschreibung der sichtbaren Arbeitsschritte."],
 ];

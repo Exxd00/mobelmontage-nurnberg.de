@@ -47,8 +47,9 @@ export default function LeistungenPage() {
         <h2>Was kostet mein Vorhaben?</h2>
         <p>
           Wählen Sie einen Beispielauftrag oder eine Leistung. Der angezeigte
-          Richtpreis hilft bei der Planung. Ihr persönliches Angebot richtet sich
-          nach Modell, Umfang, Zugang und Anfahrt.
+          Richtpreis hilft bei der Planung. Wir übernehmen Ihre Auswahl ins
+          Anfrageformular. Nach Prüfung von Umfang, Zugang und Anfahrt erhalten
+          Sie Ihr persönliches Angebot.
         </p>
         <PriceEstimator />
         <details>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap, AlertCircle, Phone, MessageCircle } from "lucide-react";
 import { trackFormStart, trackFormSubmit, trackLead } from "@/lib/analytics";
 import { getTrackingData } from "@/lib/tracking";
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { services, businessInfo } from "@/lib/data";
+import { getQuoteFields, needsWorksitePostcode, validateQuoteScope, isContactPhone, type QuoteField } from "@/lib/quote-requirements";
 import { compressFiles, formatFileSize, isImageFile } from "@/lib/compression";
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -45,21 +47,15 @@ function scrollToElement(elementId: string, offset: number = 100) {
   }, 150);
 }
 
-// Scroll to first invalid field and highlight it
-function scrollToInvalidField(fieldId: string) {
-  const element = document.getElementById(fieldId);
-  if (element) {
-    const elementPosition = element.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({
-      top: elementPosition - 120,
-      behavior: 'smooth'
-    });
-    // Add shake animation
-    element.classList.add('animate-shake');
-    setTimeout(() => {
-      element.classList.remove('animate-shake');
-    }, 600);
-  }
+function focusQuoteField(field: string) {
+  const ids: Record<string, string> = { service: "quick-service", plz: "quick-worksite", name: "quick-name", phone: "quick-phone", email: "quick-email" };
+  const id = ids[field] || "quote-" + field;
+  requestAnimationFrame(() => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.scrollIntoView({ block: "center", behavior: "auto" });
+  });
 }
 
 // File type info
@@ -91,85 +87,39 @@ function FileIcon({ type }: { type: UploadedFile['type'] }) {
   }
 }
 
-// Toggle Button Component - Mobile Responsive with Auto-Scroll
-function ToggleButton({
-  options,
-  value,
-  onChange,
-  columns = 2,
-  nextSectionId,
-  inline = false
+function ProjectField({
+  field, value, onChange, hasAttachment, error,
 }: {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
-  columns?: number;
-  nextSectionId?: string;
-  inline?: boolean;
+  field: QuoteField; value: string; onChange: (value: string) => void; hasAttachment: boolean; error?: string;
 }) {
-  const handleChange = (newValue: string) => {
-    onChange(newValue);
-    if (nextSectionId) {
-      scrollToElement(nextSectionId);
-    }
+  const id = "quote-" + field.key;
+  const evidence = field.key === "specification";
+  const required = !evidence || !hasAttachment;
+  const minimum = field.key === "cabinetCount" ? 0 : field.key.endsWith("Distance") ? 51 : 1;
+  const describedBy = [field.hint && id + "-hint", error && id + "-error"].filter(Boolean).join(" ") || undefined;
+  const common = {
+    id, name: field.key, value, required,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": describedBy,
+    className: "input-focus w-full min-h-11 rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground",
+    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => onChange(event.target.value),
   };
-
-  // For inline mode (Yes/No side by side compactly)
-  if (inline) {
-    return (
-      <div className="flex gap-2">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => handleChange(option.value)}
-            className={`flex-1 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all min-h-[44px] active:scale-[0.98] ${
-              value === option.value
-                ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                : 'border-border bg-background hover:border-primary/50 active:bg-primary/5'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  // Mobile responsive: 3 cols → 1 col on mobile, 2 cols stays 2
-  const getGridClass = () => {
-    if (columns === 3) return 'grid-cols-1 sm:grid-cols-3';
-    if (columns === 2) return 'grid-cols-2';
-    return 'grid-cols-1';
-  };
-
-  return (
-    <div className={`grid gap-2 sm:gap-3 ${getGridClass()}`}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => handleChange(option.value)}
-          className={`px-3 sm:px-4 py-3.5 sm:py-3 rounded-xl border-2 text-sm font-medium transition-all min-h-[48px] active:scale-[0.98] ${
-            value === option.value
-              ? 'border-primary bg-primary text-primary-foreground shadow-md'
-              : 'border-border bg-background hover:border-primary/50 active:bg-primary/5'
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// Section Header Component - Mobile Responsive
-function SectionHeader({ title, color = "primary" }: { title: string; color?: string }) {
-  return (
-    <div className={`text-sm sm:text-base font-semibold mb-3 ${color === "primary" ? "text-primary" : "text-primary"}`}>
-      {title}
-    </div>
-  );
+  return <div className="min-w-0 space-y-1.5">
+    <Label htmlFor={id}>{field.label}{required ? " *" : ""}</Label>
+    {field.hint && <p id={id + "-hint"} className="text-sm leading-snug text-muted-foreground">{field.hint}</p>}
+    {field.kind === "select" ? <select {...common}>
+      <option value="">Bitte auswählen</option>
+      {field.options?.map(option => <option key={option} value={option}>{option}</option>)}
+    </select> : field.kind === "textarea" ? <Textarea {...common} rows={3}/>
+      : <Input {...common} type={field.kind === "count" ? "number" : field.kind === "date" ? "date" : "text"}
+          min={field.kind === "count" ? minimum : undefined} step={field.kind === "count" ? 1 : undefined}
+          inputMode={field.kind === "count" ? "numeric" : undefined}/>}
+    {evidence && <button type="button" className="text-sm font-semibold text-primary underline" onClick={() => {
+      const uploads = document.querySelector<HTMLDetailsElement>("#quote-attachments");
+      if (uploads) { uploads.open = true; uploads.querySelector<HTMLButtonElement>("button:not([aria-label])")?.focus(); }
+    }}>Foto oder Plan hinzufügen</button>}
+    {error && <p id={id + "-error"} role="alert" className="text-sm font-medium text-destructive">{error}</p>}
+  </div>;
 }
 
 // Progress Bar Component
@@ -235,140 +185,48 @@ export default function QuickContactForm({ initialService = "", initialDetails =
   const planInputRef = useRef<HTMLInputElement>(null);
 
   const preparing = useRef(false);
+  const previews = useRef(new Set<string>());
+  useEffect(() => {
+    const urls = previews.current;
+    return () => { for (const url of urls) URL.revokeObjectURL(url); };
+  }, []);
   const [preparingFiles, setPreparingFiles] = useState(false);
   const [attachmentProgress, setAttachmentProgress] = useState<ProgressState>({ stage: "idle", progress: 0, message: "" });
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     service: initialService,
-    details: initialDetails,
-    company: "",
     worksite: "",
-    timeSlot: "",
     name: "",
     phone: "",
     email: "",
   });
 
-  // Küchenmontage specific fields
-  const [kitchenFields, setKitchenFields] = useState({
-    // Timing
-    urgency: "",
-    timeframe: "",
-    dayTime: "",
-    // Basic data
-    brand: "",
-    form: "",
-    cabinetCount: "",
-    // Status & Location
-    kitchenOnSite: "",
-    needPickup: "",
-    pickupAddress: "",
-    kitchenCondition: "",
-    countertopType: "",
-    // Old kitchen
-    hasOldKitchen: "",
-    oldKitchenAction: "",
-    // Special equipment
-    hasWaterSystem: "",
-    // Connections
-    waterConnection: "",
-    electricConnection: "",
-    cutCountertop: "",
-    // Access & Parking
-    parking: "",
-    access: "",
-  });
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [organization, setOrganization] = useState<Record<string, string>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
+  const sending = useRef(false);
+  const [customerType, setCustomerType] = useState<"private" | "business" | null>(null);
+  const isBusiness = customerType ? customerType === "business" : businessInquiry;
+  const selectedService = formData.service;
+  const rawMessage = notes[selectedService] ?? (selectedService === initialService ? initialDetails : "");
+  const incomingBusinessReference = initialDetails.split("\n").find(line => line.startsWith("Firmenanfrage: "));
+  const message = !isBusiness && incomingBusinessReference
+    ? rawMessage.split("\n").filter(line => line !== incomingBusinessReference)
+      .map(line => line.startsWith(incomingBusinessReference) ? line.slice(incomingBusinessReference.length).trimStart() : line).join("\n")
+    : rawMessage;
+  const currentDetails = { ...drafts[selectedService], ...(isBusiness ? organization : {}) };
+  const fields = getQuoteFields(selectedService, currentDetails, isBusiness);
+  const groups = new Map<string, QuoteField[]>();
+  for (const field of fields) {
+    const group = groups.get(field.group);
+    if (group) group.push(field);
+    else groups.set(field.group, [field]);
+  }
 
-  // Möbelmontage specific fields
-  const [furnitureFields, setFurnitureFields] = useState({
-    // Timing
-    urgency: "",
-    timeframe: "",
-    dayTime: "",
-    // Furniture details
-    furnitureType: "",
-    brand: "",
-    itemCount: "",
-    // Status & Location
-    furnitureOnSite: "",
-    needPickup: "",
-    pickupAddress: "",
-    furnitureCondition: "",
-    // Access & Parking
-    parking: "",
-    access: "",
-  });
+  const [uploads, setUploads] = useState<Record<string, { images: UploadedFile[]; plans: UploadedFile[] }>>({});
+  const { images, plans } = uploads[selectedService] || { images: [], plans: [] };
 
-  // Lieferung specific fields
-  const [deliveryFields, setDeliveryFields] = useState({
-    // Timing
-    urgency: "",
-    timeframe: "",
-    dayTime: "",
-    // Pickup
-    pickupAddress: "",
-    pickupFloor: "",
-    pickupParking: "",
-    // Delivery
-    deliveryAddress: "",
-    deliveryFloor: "",
-    deliveryParking: "",
-    // Items
-    itemDescription: "",
-    itemCount: "",
-    itemSize: "",
-    needHelpers: "",
-  });
-
-  // Umzüge specific fields
-  const [movingFields, setMovingFields] = useState({
-    // Timing
-    urgency: "",
-    moveDate: "",
-    dayTime: "",
-    // Current address
-    currentAddress: "",
-    currentFloor: "",
-    currentParking: "",
-    currentRooms: "",
-    currentSize: "",
-    hasElevator: "",
-    // New address
-    newAddress: "",
-    newFloor: "",
-    newParking: "",
-    newHasElevator: "",
-    // Items
-    hasHeavyItems: "",
-    heavyItemsDescription: "",
-    needPacking: "",
-    needStorage: "",
-  });
-
-  // Entrümpelung specific fields
-  const [clearanceFields, setClearanceFields] = useState({
-    // Timing
-    urgency: "",
-    timeframe: "",
-    dayTime: "",
-    // Location
-    address: "",
-    floor: "",
-    parking: "",
-    hasElevator: "",
-    // Area
-    areaType: "",
-    areaSize: "",
-    roomCount: "",
-    // Items
-    itemTypes: "",
-    hasHeavyItems: "",
-    needsDisposal: "",
-    specialItems: "",
-  });
-
-  const [images, setImages] = useState<UploadedFile[]>([]);
-  const [plans, setPlans] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sentInline, setSentInline] = useState(false);
   const [error, setError] = useState("");
@@ -381,98 +239,30 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     message: '',
   });
 
-  // Reset service-specific fields when service changes
-  useEffect(() => {
-    setKitchenFields({
-      urgency: "",
-      timeframe: "",
-      dayTime: "",
-      brand: "",
-      form: "",
-      cabinetCount: "",
-      kitchenOnSite: "",
-      needPickup: "",
-      pickupAddress: "",
-      kitchenCondition: "",
-      countertopType: "",
-      hasOldKitchen: "",
-      oldKitchenAction: "",
-      hasWaterSystem: "",
-      waterConnection: "",
-      electricConnection: "",
-      cutCountertop: "",
-      parking: "",
-      access: "",
-    });
-    setFurnitureFields({
-      urgency: "",
-      timeframe: "",
-      dayTime: "",
-      furnitureType: "",
-      brand: "",
-      itemCount: "",
-      furnitureOnSite: "",
-      needPickup: "",
-      pickupAddress: "",
-      furnitureCondition: "",
-      parking: "",
-      access: "",
-    });
-    setDeliveryFields({
-      urgency: "",
-      timeframe: "",
-      dayTime: "",
-      pickupAddress: "",
-      pickupFloor: "",
-      pickupParking: "",
-      deliveryAddress: "",
-      deliveryFloor: "",
-      deliveryParking: "",
-      itemDescription: "",
-      itemCount: "",
-      itemSize: "",
-      needHelpers: "",
-    });
-    setMovingFields({
-      urgency: "",
-      moveDate: "",
-      dayTime: "",
-      currentAddress: "",
-      currentFloor: "",
-      currentParking: "",
-      currentRooms: "",
-      currentSize: "",
-      hasElevator: "",
-      newAddress: "",
-      newFloor: "",
-      newParking: "",
-      newHasElevator: "",
-      hasHeavyItems: "",
-      heavyItemsDescription: "",
-      needPacking: "",
-      needStorage: "",
-    });
-    setClearanceFields({
-      urgency: "",
-      timeframe: "",
-      dayTime: "",
-      address: "",
-      floor: "",
-      parking: "",
-      hasElevator: "",
-      areaType: "",
-      areaSize: "",
-      roomCount: "",
-      itemTypes: "",
-      hasHeavyItems: "",
-      needsDisposal: "",
-      specialItems: "",
-    });
-  }, [formData.service]);
+  const selectService = useCallback((service: string) => {
+    if (preparing.current || sending.current) return;
+    setFormData(previous => ({ ...previous, service }));
+    setAttachmentProgress({ stage: "idle", progress: 0, message: "" });
+    setCurrentStep(1);
+    setFieldError(null);
+    setError("");
+  }, []);
+
+  function changeField(key: string, value: string) {
+    if (isBusiness && (key === "company" || key === "timeSlot")) {
+      setOrganization(previous => ({ ...previous, [key]: value }));
+    } else {
+      setDrafts(previous => ({
+        ...previous,
+        [selectedService]: { ...previous[selectedService], [key]: value },
+      }));
+    }
+    setFieldError(null);
+  }
 
   // Track form start when user begins filling
   useEffect(() => {
-    const hasData = formData.service || formData.details || formData.name;
+    const hasData = formData.service || formData.name;
     if (hasData && !hasStartedForm) {
       setHasStartedForm(true);
       trackFormStart("quick_contact_form");
@@ -517,8 +307,12 @@ export default function QuickContactForm({ initialService = "", initialDetails =
         type: getFileType(file.type),
         preview: photos ? URL.createObjectURL(file) : "",
       }));
-      const save = photos ? setImages : setPlans;
-      save(current => [...current, ...files]);
+      for (const file of files) if (file.preview) previews.current.add(file.preview);
+      setUploads(current => {
+        const selection = current[selectedService] || { images: [], plans: [] };
+        return { ...current, [selectedService]: { ...selection, [group]: [...selection[group], ...files] } };
+      });
+      if (fieldError?.field === "specification") setFieldError(null);
       const bytes = prepared.reduce((sum, file) => sum + file.size, 0);
       setAttachmentProgress({ stage: "done", progress: 100, message: "Auswahl bereit zum Senden", details: formatFileSize(bytes) });
     } catch (err) {
@@ -530,47 +324,65 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => {
-      const newFiles = [...prev];
-      if (newFiles[index].preview) {
-        URL.revokeObjectURL(newFiles[index].preview);
-      }
-      newFiles.splice(index, 1);
-      return newFiles;
-    });
-  };
+  function removeFile(group: "images" | "plans", index: number) {
+    const selection = uploads[selectedService];
+    if (!selection?.[group][index]) return;
+    const preview = selection[group][index].preview;
+    if (preview) {
+      URL.revokeObjectURL(preview);
+      previews.current.delete(preview);
+    }
+    setUploads(current => ({
+      ...current,
+      [selectedService]: { ...current[selectedService], [group]: current[selectedService][group].filter((_, i) => i !== index) },
+    }));
+    setAttachmentProgress({ stage: "idle", progress: 0, message: "" });
+  }
 
-  const removePlan = (index: number) => {
-    setPlans((prev) => {
-      const newFiles = [...prev];
-      if (newFiles[index].preview) {
-        URL.revokeObjectURL(newFiles[index].preview);
-      }
-      newFiles.splice(index, 1);
-      return newFiles;
+  function validateProject() {
+    const issue = validateQuoteScope({
+      service: selectedService, plz: formData.worksite, serviceDetails: currentDetails,
+      fileCount: images.length + plans.length, businessInquiry: isBusiness,
     });
-  };
+    if (issue) {
+      setCurrentStep(1);
+      setError("");
+      setFieldError(issue);
+      focusQuoteField(issue.field);
+    }
+    return !issue;
+  }
 
   const goToStep2 = () => {
-    if (!formData.service) {
-      setError("Bitte wählen Sie eine Dienstleistung");
-      scrollToInvalidField("quick-service");
-      return;
-    }
+    if (preparing.current || !validateProject()) return;
     setError("");
+    setFieldError(null);
     setCurrentStep(2);
-    scrollToElement("form-step-indicator", 20);
+    requestAnimationFrame(() => document.getElementById("quick-name")?.focus());
   };
 
   const goToStep1 = () => {
     setCurrentStep(1);
     setError("");
+    setFieldError(null);
     scrollToElement("form-step-indicator", 20);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (preparing.current || sending.current) return;
+    if (currentStep === 1) { goToStep2(); return; }
+    if (!validateProject()) return;
+    const form = e.currentTarget as HTMLFormElement;
+    if (!form.reportValidity()) return;
+    const invalidContact = !formData.name.trim()
+      ? { field: "name", message: "Bitte geben Sie Ihren Namen an." }
+      : !isContactPhone(formData.phone)
+        ? { field: "phone", message: "Bitte geben Sie eine erreichbare Telefonnummer mit Vorwahl an." }
+        : null;
+    if (invalidContact) { setFieldError(invalidContact); focusQuoteField(invalidContact.field); return; }
+    setFieldError(null);
+    sending.current = true;
     setIsSubmitting(true);
     setError("");
 
@@ -598,27 +410,18 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       // Get tracking data (GCLID, source, page)
       const tracking = getTrackingData();
 
-      const serviceFields = {
-        kuechenmontage: kitchenFields,
-        moebelmontage: furnitureFields,
-        lieferungen: deliveryFields,
-        umzuege: movingFields,
-        entruempelung: clearanceFields,
-      };
-
+      const serviceDetails = Object.fromEntries(fields.map(field => [field.key, (currentDetails[field.key] || "").trim()]));
       const submitData = {
         service: formData.service,
-        message: formData.details,
-        plz: formData.worksite,
+        message,
+        plz: needsWorksitePostcode(selectedService) ? formData.worksite.trim() : "",
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
         fileUrls: [],
         fileAttachments: fileAttachments,
-        serviceDetails: {
-          ...serviceFields[formData.service as keyof typeof serviceFields],
-          ...(businessInquiry ? { company: formData.company, timeSlot: formData.timeSlot } : {}),
-        },
+        serviceDetails,
+        businessInquiry: isBusiness,
         gclid: tracking.gclid,
         quelle: tracking.source,
         seite: tracking.page,
@@ -649,6 +452,15 @@ export default function QuickContactForm({ initialService = "", initialDetails =
       // Only treat as success if the server actually delivered the request.
       // The API returns { success: true } exclusively when the notification email was sent.
       if (!response.ok || !result?.success) {
+        if (typeof result?.field === "string" && ["service", "plz", ...fields.map(field => field.key)].includes(result.field)) {
+          setFieldError({ field: result.field, message: result.error || "Bitte prüfen Sie diese Angabe." });
+          setCurrentStep(1);
+          setIsSubmitting(false);
+          sending.current = false;
+          setProgressState({ stage: "idle", progress: 0, message: "" });
+          focusQuoteField(result.field);
+          return;
+        }
         throw new Error(
           result?.error ||
             "Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut oder kontaktieren Sie uns telefonisch.",
@@ -688,1337 +500,20 @@ export default function QuickContactForm({ initialService = "", initialDetails =
           ? err.message
           : "Fehler beim Senden. Bitte versuchen Sie es erneut.";
       setError(errorMessage);
+      sending.current = false;
       setIsSubmitting(false);
       setProgressState({ stage: 'idle', progress: 0, message: '' });
       // Bring the error into view so the reason is always visible
-      scrollToInvalidField("quick-submit-error");
+      requestAnimationFrame(() => document.getElementById("quick-submit-error")?.focus());
     }
   };
-
-  // Render Möbelmontage specific fields
-  const renderFurnitureFields = () => (
-    <div className="space-y-6">
-      {/* Wann soll es losgehen? */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Wann soll es losgehen?" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wie dringend?</Label>
-          <ToggleButton
-            options={[
-              { value: "Dringend (Express)", label: "Dringend (Express)" },
-              { value: "Normal", label: "Normal" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={furnitureFields.urgency}
-            onChange={(v) => setFurnitureFields({ ...furnitureFields, urgency: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gewünschter Zeitraum</Label>
-          <Select
-            value={furnitureFields.timeframe}
-            onValueChange={(v) => setFurnitureFields({ ...furnitureFields, timeframe: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Diese Woche">Diese Woche</SelectItem>
-              <SelectItem value="Nächste Woche">Nächste Woche</SelectItem>
-              <SelectItem value="In 2-3 Wochen">In 2-3 Wochen</SelectItem>
-              <SelectItem value="In 1 Monat">In 1 Monat</SelectItem>
-              <SelectItem value="Flexibel">Flexibel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Bevorzugte Tageszeit</Label>
-          <ToggleButton
-            options={[
-              { value: "Vormittags", label: "Vormittags" },
-              { value: "Nachmittags", label: "Nachmittags" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={furnitureFields.dayTime}
-            onChange={(v) => setFurnitureFields({ ...furnitureFields, dayTime: v })}
-            columns={3}
-          />
-        </div>
-      </div>
-
-      {/* Möbel-Grunddaten */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Möbel-Grunddaten" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Möbelart *</Label>
-          <Select
-            value={furnitureFields.furnitureType}
-            onValueChange={(v) => setFurnitureFields({ ...furnitureFields, furnitureType: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PAX Kleiderschrank">PAX Kleiderschrank</SelectItem>
-              <SelectItem value="Bett">Bett</SelectItem>
-              <SelectItem value="Kommode">Kommode</SelectItem>
-              <SelectItem value="Regal">Regal</SelectItem>
-              <SelectItem value="Schreibtisch">Schreibtisch</SelectItem>
-              <SelectItem value="Esstisch">Esstisch</SelectItem>
-              <SelectItem value="Sofa">Sofa</SelectItem>
-              <SelectItem value="TV-Möbel">TV-Möbel</SelectItem>
-              <SelectItem value="Mehrere Möbelstücke">Mehrere Möbelstücke</SelectItem>
-              <SelectItem value="Andere">Andere</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Marke</Label>
-            <Select
-              value={furnitureFields.brand}
-              onValueChange={(v) => setFurnitureFields({ ...furnitureFields, brand: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="IKEA">IKEA</SelectItem>
-                <SelectItem value="POCO">POCO</SelectItem>
-                <SelectItem value="Roller">Roller</SelectItem>
-                <SelectItem value="XXXLutz">XXXLutz</SelectItem>
-                <SelectItem value="Höffner">Höffner</SelectItem>
-                <SelectItem value="Andere">Andere</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Anzahl Möbelstücke</Label>
-            <Select
-              value={furnitureFields.itemCount}
-              onValueChange={(v) => setFurnitureFields({ ...furnitureFields, itemCount: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1</SelectItem>
-                <SelectItem value="2-3">2-3</SelectItem>
-                <SelectItem value="4-5">4-5</SelectItem>
-                <SelectItem value="6-10">6-10</SelectItem>
-                <SelectItem value="Mehr als 10">Mehr als 10</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Möbelstatus & Standort */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Möbelstatus & Standort" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Sind die Möbel bereits bei Ihnen vor Ort?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={furnitureFields.furnitureOnSite}
-            onChange={(v) => setFurnitureFields({ ...furnitureFields, furnitureOnSite: v, needPickup: "", pickupAddress: "" })}
-          />
-        </div>
-
-        {furnitureFields.furnitureOnSite === "Nein" && (
-          <div className="ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-primary/30 space-y-3 sm:space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm leading-relaxed">Sollen wir die Möbel abholen/liefern?</Label>
-              <ToggleButton
-                options={[
-                  { value: "Ja", label: "Ja" },
-                  { value: "Nein", label: "Nein" },
-                ]}
-                value={furnitureFields.needPickup}
-                onChange={(v) => setFurnitureFields({ ...furnitureFields, needPickup: v })}
-              />
-            </div>
-
-            {furnitureFields.needPickup === "Ja" && (
-              <div className="space-y-2">
-                <Label className="text-sm leading-relaxed">Abholadresse eingeben *</Label>
-                <Input
-                  placeholder="Straße, Hausnummer, PLZ und Ort"
-                  value={furnitureFields.pickupAddress}
-                  onChange={(e) => setFurnitureFields({ ...furnitureFields, pickupAddress: e.target.value })}
-                  className="input-focus"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">In welchem Zustand sind die Möbel?</Label>
-          <ToggleButton
-            options={[
-              { value: "Zerlegt (in Paketen)", label: "Zerlegt (in Paketen)" },
-              { value: "Fertig montiert", label: "Fertig montiert" },
-            ]}
-            value={furnitureFields.furnitureCondition}
-            onChange={(v) => setFurnitureFields({ ...furnitureFields, furnitureCondition: v })}
-          />
-        </div>
-      </div>
-
-      {/* Zugang & Parken */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Zugang & Parken" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-            <Select
-              value={furnitureFields.parking}
-              onValueChange={(v) => setFurnitureFields({ ...furnitureFields, parking: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-                <SelectItem value="In der Nähe (< 50m)">In der Nähe (&lt; 50m)</SelectItem>
-                <SelectItem value="Weiter entfernt (> 50m)">Weiter entfernt (&gt; 50m)</SelectItem>
-                <SelectItem value="Schwierige Parksituation">Schwierige Parksituation</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Zugang zur Wohnung</Label>
-            <Select
-              value={furnitureFields.access}
-              onValueChange={(v) => setFurnitureFields({ ...furnitureFields, access: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage (mit Aufzug)">1. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="1. Etage (ohne Aufzug)">1. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="2. Etage (mit Aufzug)">2. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="2. Etage (ohne Aufzug)">2. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="3. Etage oder höher (mit Aufzug)">3. Etage oder höher (mit Aufzug)</SelectItem>
-                <SelectItem value="3. Etage oder höher (ohne Aufzug)">3. Etage oder höher (ohne Aufzug)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Render Lieferung specific fields
-  const renderDeliveryFields = () => (
-    <div className="space-y-6">
-      {/* Wann soll es losgehen? */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Wann soll es losgehen?" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wie dringend?</Label>
-          <ToggleButton
-            options={[
-              { value: "Dringend (Express)", label: "Dringend (Express)" },
-              { value: "Normal", label: "Normal" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={deliveryFields.urgency}
-            onChange={(v) => setDeliveryFields({ ...deliveryFields, urgency: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gewünschter Zeitraum</Label>
-          <Select
-            value={deliveryFields.timeframe}
-            onValueChange={(v) => setDeliveryFields({ ...deliveryFields, timeframe: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Heute">Heute</SelectItem>
-              <SelectItem value="Morgen">Morgen</SelectItem>
-              <SelectItem value="Diese Woche">Diese Woche</SelectItem>
-              <SelectItem value="Nächste Woche">Nächste Woche</SelectItem>
-              <SelectItem value="Flexibel">Flexibel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Bevorzugte Tageszeit</Label>
-          <ToggleButton
-            options={[
-              { value: "Vormittags", label: "Vormittags" },
-              { value: "Nachmittags", label: "Nachmittags" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={deliveryFields.dayTime}
-            onChange={(v) => setDeliveryFields({ ...deliveryFields, dayTime: v })}
-            columns={3}
-          />
-        </div>
-      </div>
-
-      {/* Abholung */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Abholung" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Abholadresse *</Label>
-          <Input
-            placeholder="Straße, Hausnummer, PLZ und Ort"
-            value={deliveryFields.pickupAddress}
-            onChange={(e) => setDeliveryFields({ ...deliveryFields, pickupAddress: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Etage</Label>
-            <Select
-              value={deliveryFields.pickupFloor}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, pickupFloor: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage">1. Etage</SelectItem>
-                <SelectItem value="2. Etage">2. Etage</SelectItem>
-                <SelectItem value="3. Etage oder höher">3. Etage oder höher</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-            <Select
-              value={deliveryFields.pickupParking}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, pickupParking: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-                <SelectItem value="In der Nähe">In der Nähe</SelectItem>
-                <SelectItem value="Schwierig">Schwierig</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Lieferung */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Lieferung" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Lieferadresse *</Label>
-          <Input
-            placeholder="Ihre Adresse..."
-            value={deliveryFields.deliveryAddress}
-            onChange={(e) => setDeliveryFields({ ...deliveryFields, deliveryAddress: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Etage</Label>
-            <Select
-              value={deliveryFields.deliveryFloor}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, deliveryFloor: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage">1. Etage</SelectItem>
-                <SelectItem value="2. Etage">2. Etage</SelectItem>
-                <SelectItem value="3. Etage oder höher">3. Etage oder höher</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-            <Select
-              value={deliveryFields.deliveryParking}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, deliveryParking: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-                <SelectItem value="In der Nähe">In der Nähe</SelectItem>
-                <SelectItem value="Schwierig">Schwierig</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Gegenstände */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Gegenstände" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Was soll geliefert werden? *</Label>
-          <Input
-            placeholder="Welche Gegenstände sollen abgeholt werden?"
-            value={deliveryFields.itemDescription}
-            onChange={(e) => setDeliveryFields({ ...deliveryFields, itemDescription: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Anzahl Pakete/Teile</Label>
-            <Select
-              value={deliveryFields.itemCount}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, itemCount: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1-5">1-5</SelectItem>
-                <SelectItem value="6-10">6-10</SelectItem>
-                <SelectItem value="11-20">11-20</SelectItem>
-                <SelectItem value="Mehr als 20">Mehr als 20</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Größe/Gewicht</Label>
-            <Select
-              value={deliveryFields.itemSize}
-              onValueChange={(v) => setDeliveryFields({ ...deliveryFields, itemSize: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Klein (bis 20kg)">Klein (bis 20kg)</SelectItem>
-                <SelectItem value="Mittel (20-50kg)">Mittel (20-50kg)</SelectItem>
-                <SelectItem value="Groß (über 50kg)">Groß (über 50kg)</SelectItem>
-                <SelectItem value="Sehr groß/schwer">Sehr groß/schwer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Soll unser Team die Gegenstände in die Wohnung tragen?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={deliveryFields.needHelpers}
-            onChange={(v) => setDeliveryFields({ ...deliveryFields, needHelpers: v })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Render Umzüge specific fields
-  const renderMovingFields = () => (
-    <div className="space-y-6">
-      {/* Wann soll es losgehen? */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Wann soll es losgehen?" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wie dringend?</Label>
-          <ToggleButton
-            options={[
-              { value: "Dringend (Express)", label: "Dringend (Express)" },
-              { value: "Normal", label: "Normal" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={movingFields.urgency}
-            onChange={(v) => setMovingFields({ ...movingFields, urgency: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gewünschtes Umzugsdatum</Label>
-          <Input
-            type="date"
-            value={movingFields.moveDate}
-            onChange={(e) => setMovingFields({ ...movingFields, moveDate: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Bevorzugte Tageszeit</Label>
-          <ToggleButton
-            options={[
-              { value: "Vormittags", label: "Vormittags" },
-              { value: "Nachmittags", label: "Nachmittags" },
-              { value: "Ganztägig", label: "Ganztägig" },
-            ]}
-            value={movingFields.dayTime}
-            onChange={(v) => setMovingFields({ ...movingFields, dayTime: v })}
-            columns={3}
-          />
-        </div>
-      </div>
-
-      {/* Aktuelle Wohnung */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Aktuelle Wohnung (Auszug)" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Aktuelle Adresse *</Label>
-          <Input
-            placeholder="Straße, Hausnummer, PLZ, Ort"
-            value={movingFields.currentAddress}
-            onChange={(e) => setMovingFields({ ...movingFields, currentAddress: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Wohnfläche ca.</Label>
-            <Select
-              value={movingFields.currentSize}
-              onValueChange={(v) => setMovingFields({ ...movingFields, currentSize: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bis 30 m²">Bis 30 m²</SelectItem>
-                <SelectItem value="30-50 m²">30-50 m²</SelectItem>
-                <SelectItem value="50-80 m²">50-80 m²</SelectItem>
-                <SelectItem value="80-100 m²">80-100 m²</SelectItem>
-                <SelectItem value="100-150 m²">100-150 m²</SelectItem>
-                <SelectItem value="Über 150 m²">Über 150 m²</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Anzahl Zimmer</Label>
-            <Select
-              value={movingFields.currentRooms}
-              onValueChange={(v) => setMovingFields({ ...movingFields, currentRooms: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1 Zimmer">1 Zimmer</SelectItem>
-                <SelectItem value="2 Zimmer">2 Zimmer</SelectItem>
-                <SelectItem value="3 Zimmer">3 Zimmer</SelectItem>
-                <SelectItem value="4 Zimmer">4 Zimmer</SelectItem>
-                <SelectItem value="5+ Zimmer">5+ Zimmer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Etage</Label>
-            <Select
-              value={movingFields.currentFloor}
-              onValueChange={(v) => setMovingFields({ ...movingFields, currentFloor: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage">1. Etage</SelectItem>
-                <SelectItem value="2. Etage">2. Etage</SelectItem>
-                <SelectItem value="3. Etage">3. Etage</SelectItem>
-                <SelectItem value="4. Etage oder höher">4. Etage oder höher</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Aufzug vorhanden?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={movingFields.hasElevator}
-              onChange={(v) => setMovingFields({ ...movingFields, hasElevator: v })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-          <Select
-            value={movingFields.currentParking}
-            onValueChange={(v) => setMovingFields({ ...movingFields, currentParking: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-              <SelectItem value="In der Nähe (< 50m)">In der Nähe (&lt; 50m)</SelectItem>
-              <SelectItem value="Weiter entfernt">Weiter entfernt</SelectItem>
-              <SelectItem value="Halteverbot nötig">Halteverbot nötig</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Neue Wohnung */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Neue Wohnung (Einzug)" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Neue Adresse *</Label>
-          <Input
-            placeholder="Straße, Hausnummer, PLZ, Ort"
-            value={movingFields.newAddress}
-            onChange={(e) => setMovingFields({ ...movingFields, newAddress: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Etage</Label>
-            <Select
-              value={movingFields.newFloor}
-              onValueChange={(v) => setMovingFields({ ...movingFields, newFloor: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage">1. Etage</SelectItem>
-                <SelectItem value="2. Etage">2. Etage</SelectItem>
-                <SelectItem value="3. Etage">3. Etage</SelectItem>
-                <SelectItem value="4. Etage oder höher">4. Etage oder höher</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Aufzug vorhanden?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={movingFields.newHasElevator}
-              onChange={(v) => setMovingFields({ ...movingFields, newHasElevator: v })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-          <Select
-            value={movingFields.newParking}
-            onValueChange={(v) => setMovingFields({ ...movingFields, newParking: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-              <SelectItem value="In der Nähe (< 50m)">In der Nähe (&lt; 50m)</SelectItem>
-              <SelectItem value="Weiter entfernt">Weiter entfernt</SelectItem>
-              <SelectItem value="Halteverbot nötig">Halteverbot nötig</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Zusätzliche Services */}
-      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
-        <SectionHeader title="Zusätzliche Services" color="orange" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Schwere/sperrige Gegenstände?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={movingFields.hasHeavyItems}
-            onChange={(v) => setMovingFields({ ...movingFields, hasHeavyItems: v, heavyItemsDescription: "" })}
-          />
-        </div>
-
-        {movingFields.hasHeavyItems === "Ja" && (
-          <div className="ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-orange-300 space-y-2">
-            <Label className="text-sm leading-relaxed">Welche Gegenstände?</Label>
-            <Input
-              placeholder="z.B. Klavier, Tresor, große Möbel..."
-              value={movingFields.heavyItemsDescription}
-              onChange={(e) => setMovingFields({ ...movingFields, heavyItemsDescription: e.target.value })}
-              className="input-focus"
-            />
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Verpackungsservice benötigt?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={movingFields.needPacking}
-            onChange={(v) => setMovingFields({ ...movingFields, needPacking: v })}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Zwischenlagerung benötigt?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={movingFields.needStorage}
-            onChange={(v) => setMovingFields({ ...movingFields, needStorage: v })}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Render Entrümpelung specific fields
-  const renderClearanceFields = () => (
-    <div className="space-y-6">
-      {/* Wann soll es losgehen? */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Wann soll es losgehen?" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wie dringend?</Label>
-          <ToggleButton
-            options={[
-              { value: "Dringend (Express)", label: "Dringend (Express)" },
-              { value: "Normal", label: "Normal" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={clearanceFields.urgency}
-            onChange={(v) => setClearanceFields({ ...clearanceFields, urgency: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gewünschter Zeitraum</Label>
-          <Select
-            value={clearanceFields.timeframe}
-            onValueChange={(v) => setClearanceFields({ ...clearanceFields, timeframe: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Diese Woche">Diese Woche</SelectItem>
-              <SelectItem value="Nächste Woche">Nächste Woche</SelectItem>
-              <SelectItem value="In 2-3 Wochen">In 2-3 Wochen</SelectItem>
-              <SelectItem value="In 1 Monat">In 1 Monat</SelectItem>
-              <SelectItem value="Flexibel">Flexibel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Bevorzugte Tageszeit</Label>
-          <ToggleButton
-            options={[
-              { value: "Vormittags", label: "Vormittags" },
-              { value: "Nachmittags", label: "Nachmittags" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={clearanceFields.dayTime}
-            onChange={(v) => setClearanceFields({ ...clearanceFields, dayTime: v })}
-            columns={3}
-          />
-        </div>
-      </div>
-
-      {/* Standort */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Standort" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Adresse *</Label>
-          <Input
-            placeholder="Straße, Hausnummer, PLZ, Ort"
-            value={clearanceFields.address}
-            onChange={(e) => setClearanceFields({ ...clearanceFields, address: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Etage</Label>
-            <Select
-              value={clearanceFields.floor}
-              onValueChange={(v) => setClearanceFields({ ...clearanceFields, floor: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Keller">Keller</SelectItem>
-                <SelectItem value="Erdgeschoss">Erdgeschoss</SelectItem>
-                <SelectItem value="1. Etage">1. Etage</SelectItem>
-                <SelectItem value="2. Etage">2. Etage</SelectItem>
-                <SelectItem value="3. Etage oder höher">3. Etage oder höher</SelectItem>
-                <SelectItem value="Dachboden">Dachboden</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Aufzug vorhanden?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={clearanceFields.hasElevator}
-              onChange={(v) => setClearanceFields({ ...clearanceFields, hasElevator: v })}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-          <Select
-            value={clearanceFields.parking}
-            onValueChange={(v) => setClearanceFields({ ...clearanceFields, parking: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-              <SelectItem value="In der Nähe (< 50m)">In der Nähe (&lt; 50m)</SelectItem>
-              <SelectItem value="Weiter entfernt">Weiter entfernt</SelectItem>
-              <SelectItem value="Schwierige Parksituation">Schwierige Parksituation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Bereich */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Zu entrümpelnder Bereich" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Art des Bereichs *</Label>
-          <Select
-            value={clearanceFields.areaType}
-            onValueChange={(v) => setClearanceFields({ ...clearanceFields, areaType: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Wohnung komplett">Wohnung komplett</SelectItem>
-              <SelectItem value="Einzelne Zimmer">Einzelne Zimmer</SelectItem>
-              <SelectItem value="Keller">Keller</SelectItem>
-              <SelectItem value="Dachboden">Dachboden</SelectItem>
-              <SelectItem value="Garage">Garage</SelectItem>
-              <SelectItem value="Haus komplett">Haus komplett</SelectItem>
-              <SelectItem value="Büro/Gewerbe">Büro/Gewerbe</SelectItem>
-              <SelectItem value="Andere">Andere</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Fläche ca.</Label>
-            <Select
-              value={clearanceFields.areaSize}
-              onValueChange={(v) => setClearanceFields({ ...clearanceFields, areaSize: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bis 20 m²">Bis 20 m²</SelectItem>
-                <SelectItem value="20-50 m²">20-50 m²</SelectItem>
-                <SelectItem value="50-80 m²">50-80 m²</SelectItem>
-                <SelectItem value="80-100 m²">80-100 m²</SelectItem>
-                <SelectItem value="Über 100 m²">Über 100 m²</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Anzahl Räume</Label>
-            <Select
-              value={clearanceFields.roomCount}
-              onValueChange={(v) => setClearanceFields({ ...clearanceFields, roomCount: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1</SelectItem>
-                <SelectItem value="2">2</SelectItem>
-                <SelectItem value="3">3</SelectItem>
-                <SelectItem value="4-5">4-5</SelectItem>
-                <SelectItem value="Mehr als 5">Mehr als 5</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Gegenstände */}
-      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
-        <SectionHeader title="Gegenstände" color="orange" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Art der Gegenstände</Label>
-          <Select
-            value={clearanceFields.itemTypes}
-            onValueChange={(v) => setClearanceFields({ ...clearanceFields, itemTypes: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Hauptsächlich Möbel">Hauptsächlich Möbel</SelectItem>
-              <SelectItem value="Hauptsächlich Kleinkram">Hauptsächlich Kleinkram</SelectItem>
-              <SelectItem value="Gemischt">Gemischt</SelectItem>
-              <SelectItem value="Elektrogeräte">Elektrogeräte</SelectItem>
-              <SelectItem value="Alles muss raus">Alles muss raus</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Schwere/sperrige Gegenstände?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-              { value: "Weiß nicht", label: "Weiß nicht" },
-            ]}
-            value={clearanceFields.hasHeavyItems}
-            onChange={(v) => setClearanceFields({ ...clearanceFields, hasHeavyItems: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Entsorgung benötigt?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja, alles entsorgen", label: "Ja, alles entsorgen" },
-              { value: "Teilweise", label: "Teilweise" },
-              { value: "Nein, nur Transport", label: "Nein, nur Transport" },
-            ]}
-            value={clearanceFields.needsDisposal}
-            onChange={(v) => setClearanceFields({ ...clearanceFields, needsDisposal: v })}
-            columns={1}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Besondere Gegenstände (z.B. Gefahrstoffe, Sondermüll)</Label>
-          <Input
-            placeholder="z.B. Farben, Öle, Elektroschrott..."
-            value={clearanceFields.specialItems}
-            onChange={(e) => setClearanceFields({ ...clearanceFields, specialItems: e.target.value })}
-            className="input-focus"
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Render Küchenmontage specific fields
-  const renderKitchenFields = () => (
-    <div className="space-y-6">
-      {/* Wann soll es losgehen? */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Wann soll es losgehen?" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wie dringend?</Label>
-          <ToggleButton
-            options={[
-              { value: "Dringend (Express)", label: "Dringend (Express)" },
-              { value: "Normal", label: "Normal" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={kitchenFields.urgency}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, urgency: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gewünschter Zeitraum</Label>
-          <Select
-            value={kitchenFields.timeframe}
-            onValueChange={(v) => setKitchenFields({ ...kitchenFields, timeframe: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Diese Woche">Diese Woche</SelectItem>
-              <SelectItem value="Nächste Woche">Nächste Woche</SelectItem>
-              <SelectItem value="In 2-3 Wochen">In 2-3 Wochen</SelectItem>
-              <SelectItem value="In 1 Monat">In 1 Monat</SelectItem>
-              <SelectItem value="Flexibel">Flexibel</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Bevorzugte Tageszeit</Label>
-          <ToggleButton
-            options={[
-              { value: "Vormittags", label: "Vormittags" },
-              { value: "Nachmittags", label: "Nachmittags" },
-              { value: "Flexibel", label: "Flexibel" },
-            ]}
-            value={kitchenFields.dayTime}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, dayTime: v })}
-            columns={3}
-          />
-        </div>
-      </div>
-
-      {/* Küchen-Grunddaten */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Küchen-Grunddaten" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Marke *</Label>
-            <Select
-              value={kitchenFields.brand}
-              onValueChange={(v) => setKitchenFields({ ...kitchenFields, brand: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="IKEA">IKEA</SelectItem>
-                <SelectItem value="Nobilia">Nobilia</SelectItem>
-                <SelectItem value="Nolte">Nolte</SelectItem>
-                <SelectItem value="Häcker">Häcker</SelectItem>
-                <SelectItem value="Schüller">Schüller</SelectItem>
-                <SelectItem value="POCO">POCO</SelectItem>
-                <SelectItem value="Roller">Roller</SelectItem>
-                <SelectItem value="Andere">Andere</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Form *</Label>
-            <Select
-              value={kitchenFields.form}
-              onValueChange={(v) => setKitchenFields({ ...kitchenFields, form: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Küchenzeile">Küchenzeile</SelectItem>
-                <SelectItem value="L-Form">L-Form</SelectItem>
-                <SelectItem value="U-Form">U-Form</SelectItem>
-                <SelectItem value="Inselküche">Inselküche</SelectItem>
-                <SelectItem value="Andere">Andere</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Anzahl Schränke (ca.)</Label>
-          <Select
-            value={kitchenFields.cabinetCount}
-            onValueChange={(v) => setKitchenFields({ ...kitchenFields, cabinetCount: v })}
-          >
-            <SelectTrigger className="input-focus">
-              <SelectValue placeholder="Auswählen..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1-5">1-5</SelectItem>
-              <SelectItem value="6-10">6-10</SelectItem>
-              <SelectItem value="11-15">11-15</SelectItem>
-              <SelectItem value="16-20">16-20</SelectItem>
-              <SelectItem value="Mehr als 20">Mehr als 20</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Küchenstatus & Standort */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Küchenstatus & Standort" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Ist die neue Küche bereits bei Ihnen vor Ort?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={kitchenFields.kitchenOnSite}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, kitchenOnSite: v, needPickup: "", pickupAddress: "" })}
-          />
-        </div>
-
-        {kitchenFields.kitchenOnSite === "Nein" && (
-          <div className="ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-primary/30 space-y-3 sm:space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm leading-relaxed">Sollen wir die Küche abholen/liefern?</Label>
-              <ToggleButton
-                options={[
-                  { value: "Ja", label: "Ja" },
-                  { value: "Nein", label: "Nein" },
-                ]}
-                value={kitchenFields.needPickup}
-                onChange={(v) => setKitchenFields({ ...kitchenFields, needPickup: v })}
-              />
-            </div>
-
-            {kitchenFields.needPickup === "Ja" && (
-              <div className="space-y-2">
-                <Label className="text-sm leading-relaxed">Abholadresse eingeben *</Label>
-                <Input
-                  placeholder="Straße, Hausnummer, PLZ und Ort"
-                  value={kitchenFields.pickupAddress}
-                  onChange={(e) => setKitchenFields({ ...kitchenFields, pickupAddress: e.target.value })}
-                  className="input-focus"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">In welchem Zustand ist die neue Küche?</Label>
-          <ToggleButton
-            options={[
-              { value: "Zerlegt (in Paketen)", label: "Zerlegt (in Paketen)" },
-              { value: "Fertig montiert / Einzelteile", label: "Fertig montiert / Einzelteile" },
-            ]}
-            value={kitchenFields.kitchenCondition}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, kitchenCondition: v })}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Arbeitsplatten-Typ</Label>
-          <ToggleButton
-            options={[
-              { value: "Normal (Holz/Laminat)", label: "Normal (Holz/Laminat)" },
-              { value: "Stein (Granit/Quarz/Keramik)", label: "Stein (Granit/Quarz/Keramik)" },
-            ]}
-            value={kitchenFields.countertopType}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, countertopType: v })}
-          />
-        </div>
-      </div>
-
-      {/* Alte Küche */}
-      <div className="bg-muted rounded-xl p-3 sm:p-4 border border-border space-y-3 sm:space-y-4">
-        <SectionHeader title="Alte Küche" color="orange" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Gibt es eine alte Küche, die entfernt werden muss?</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-            ]}
-            value={kitchenFields.hasOldKitchen}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, hasOldKitchen: v, oldKitchenAction: "" })}
-          />
-        </div>
-
-        {kitchenFields.hasOldKitchen === "Ja" && (
-          <div className="ml-2 sm:ml-4 pl-3 sm:pl-4 border-l-2 border-orange-300 space-y-2">
-            <Label className="text-sm leading-relaxed">Was soll mit der alten Küche passieren?</Label>
-            <ToggleButton
-              options={[
-                { value: "Entsorgen (wir nehmen sie mit)", label: "Entsorgen (wir nehmen sie mit)" },
-                { value: "Demontieren & Behalten", label: "Demontieren & Behalten" },
-              ]}
-              value={kitchenFields.oldKitchenAction}
-              onChange={(v) => setKitchenFields({ ...kitchenFields, oldKitchenAction: v })}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Besondere Ausstattung */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Besondere Ausstattung" />
-
-        <div className="space-y-2">
-          <Label className="text-sm leading-relaxed">Wassersystem vorhanden? (z.B. Quooker, GROHE Blue)</Label>
-          <ToggleButton
-            options={[
-              { value: "Ja", label: "Ja" },
-              { value: "Nein", label: "Nein" },
-              { value: "Weiß nicht", label: "Weiß nicht" },
-            ]}
-            value={kitchenFields.hasWaterSystem}
-            onChange={(v) => setKitchenFields({ ...kitchenFields, hasWaterSystem: v })}
-            columns={3}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Wasseranschluss?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={kitchenFields.waterConnection}
-              onChange={(v) => setKitchenFields({ ...kitchenFields, waterConnection: v })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Elektroanschluss?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={kitchenFields.electricConnection}
-              onChange={(v) => setKitchenFields({ ...kitchenFields, electricConnection: v })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Platte zuschneiden?</Label>
-            <ToggleButton
-              options={[
-                { value: "Ja", label: "Ja" },
-                { value: "Nein", label: "Nein" },
-              ]}
-              value={kitchenFields.cutCountertop}
-              onChange={(v) => setKitchenFields({ ...kitchenFields, cutCountertop: v })}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Zugang & Parken */}
-      <div className="bg-primary/5 rounded-xl p-3 sm:p-4 border border-primary/10 space-y-3 sm:space-y-4">
-        <SectionHeader title="Zugang & Parken (für genaue Preisberechnung)" />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Parkmöglichkeit</Label>
-            <Select
-              value={kitchenFields.parking}
-              onValueChange={(v) => setKitchenFields({ ...kitchenFields, parking: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Direkt vor der Tür">Direkt vor der Tür</SelectItem>
-                <SelectItem value="In der Nähe (< 50m)">In der Nähe (&lt; 50m)</SelectItem>
-                <SelectItem value="Weiter entfernt (> 50m)">Weiter entfernt (&gt; 50m)</SelectItem>
-                <SelectItem value="Schwierige Parksituation">Schwierige Parksituation</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm leading-relaxed">Zugang zur Wohnung</Label>
-            <Select
-              value={kitchenFields.access}
-              onValueChange={(v) => setKitchenFields({ ...kitchenFields, access: v })}
-            >
-              <SelectTrigger className="input-focus">
-                <SelectValue placeholder="Auswählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Erdgeschoss (Straßenzugang)">Erdgeschoss (Straßenzugang)</SelectItem>
-                <SelectItem value="Erdgeschoss (kein Aufzug)">Erdgeschoss (kein Aufzug)</SelectItem>
-                <SelectItem value="1. Etage (mit Aufzug)">1. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="1. Etage (ohne Aufzug)">1. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="2. Etage (mit Aufzug)">2. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="2. Etage (ohne Aufzug)">2. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="3. Etage (mit Aufzug)">3. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="3. Etage (ohne Aufzug)">3. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="4. Etage (mit Aufzug)">4. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="4. Etage (ohne Aufzug)">4. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="5. Etage (mit Aufzug)">5. Etage (mit Aufzug)</SelectItem>
-                <SelectItem value="5. Etage (ohne Aufzug)">5. Etage (ohne Aufzug)</SelectItem>
-                <SelectItem value="6. Etage oder höher (mit Aufzug)">6. Etage oder höher (mit Aufzug)</SelectItem>
-                <SelectItem value="6. Etage oder höher (ohne Aufzug)">6. Etage oder höher (ohne Aufzug)</SelectItem>
-                <SelectItem value="Sonstige">Sonstige</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   // Listen for service selection from HeroSection cards
   useEffect(() => {
     const handleServiceSelect = (event: CustomEvent<{ service: string }>) => {
       const selectedService = event.detail.service;
       if (selectedService && services.find(s => s.id === selectedService)) {
-        setFormData(prev => ({ ...prev, service: selectedService }));
+        selectService(selectedService);
         if (!hasStartedForm) {
           setHasStartedForm(true);
           trackFormStart("quick_contact_form");
@@ -2030,7 +525,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     return () => {
       window.removeEventListener('selectService', handleServiceSelect as EventListener);
     };
-  }, [hasStartedForm]);
+  }, [hasStartedForm, selectService]);
 
   return (
     <section id={embedded ? undefined : "kontakt-form"} className={embedded ? "embedded-inquiry" : "section-padding bg-muted/30"}>
@@ -2044,7 +539,8 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                 Kostenloses Angebot anfordern
               </h2>
               <p className="text-muted-foreground text-sm md:text-base">
-                Beschreiben Sie Ihr Vorhaben. Nach der Prüfung erhalten Sie Ihr persönliches Angebot.
+                Nach Ihren Projektangaben erstellen wir Ihr individuelles Angebot. Möchten Sie zuerst etwas besprechen?{" "}
+                <Link href="/rueckruf" className="font-semibold text-primary underline">Rückruf anfragen</Link>
               </p>
             </div>
 
@@ -2073,18 +569,32 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               </div>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form noValidate onSubmit={handleSubmit}>
               {/* Step 1: Project Details */}
               {currentStep === 1 && (
                 <div className="space-y-5">
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm font-medium">Für wen ist das Angebot?</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["private", "business"] as const).map(type => {
+                        const checked = type === "business" ? isBusiness : !isBusiness;
+                        return <label key={type} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${checked ? "border-primary bg-muted" : "border-border"}`}>
+                          <input type="radio" name="customerType" value={type} checked={checked}
+                            onChange={() => { setCustomerType(type); setFieldError(null); }}/>
+                          {type === "business" ? "Firma" : "Privatperson"}
+                        </label>;
+                      })}
+                    </div>
+                  </fieldset>
                   {/* Service Selection */}
                   <div className="space-y-2">
                     <Label htmlFor="quick-service">Art der Dienstleistung *</Label>
                     <Select
                       value={formData.service}
-                      onValueChange={(value) => setFormData({ ...formData, service: value })}
+                      onValueChange={selectService}
+                      disabled={preparingFiles}
                     >
-                      <SelectTrigger id="quick-service" className="input-focus">
+                      <SelectTrigger id="quick-service" className="input-focus" aria-invalid={fieldError?.field === "service" || undefined} aria-describedby={fieldError?.field === "service" ? "quote-service-error" : undefined}>
                         <SelectValue placeholder="Bitte wählen..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -2098,31 +608,41 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                     </Select>
                   </div>
 
-                  {formData.service && formData.service !== "andere" && (
-                    <details className="form-extras">
-                      <summary>Angaben zu Umfang und Termin ergänzen (optional)</summary>
-                      {formData.service === "kuechenmontage" && renderKitchenFields()}
-                      {formData.service === "moebelmontage" && renderFurnitureFields()}
-                      {formData.service === "lieferungen" && renderDeliveryFields()}
-                      {formData.service === "umzuege" && renderMovingFields()}
-                      {formData.service === "entruempelung" && renderClearanceFields()}
-                    </details>
-                  )}
+                  {fieldError?.field === "service" && <p id="quote-service-error" role="alert" className="text-sm text-destructive">{fieldError.message}</p>}
+                  {selectedService && <div className="space-y-6">
+                    <p className="text-sm text-muted-foreground">Für Ihr Angebot benötigen wir die mit * gekennzeichneten Angaben.</p>
+                    {needsWorksitePostcode(selectedService) && <div className="space-y-1.5">
+                      <Label htmlFor="quick-worksite">Postleitzahl des Einsatzorts *</Label>
+                      <Input id="quick-worksite" name="plz" type="text" autoComplete="postal-code" inputMode="numeric"
+                        maxLength={5} pattern="[0-9]{5}" required value={formData.worksite}
+                        aria-invalid={fieldError?.field === "plz" || undefined}
+                        aria-describedby={fieldError?.field === "plz" ? "quote-plz-error" : undefined}
+                        onChange={e => { setFormData({ ...formData, worksite: e.target.value }); setFieldError(null); }}/>
+                      {fieldError?.field === "plz" && <p id="quote-plz-error" role="alert" className="text-sm text-destructive">{fieldError.message}</p>}
+                    </div>}
+                    {Array.from(groups, ([title, members]) => <fieldset key={title} className="min-w-0 space-y-4 rounded-xl border border-border p-4">
+                      <legend className="px-1 text-base font-semibold text-foreground">{title}</legend>
+                      {members.map(field => <ProjectField key={field.key} field={field}
+                        value={currentDetails[field.key] || ""} hasAttachment={images.length + plans.length > 0}
+                        error={fieldError?.field === field.key ? fieldError.message : undefined}
+                        onChange={value => changeField(field.key, value)}/>)}
+                    </fieldset>)}
+                  </div>}
 
-                  {/* Details */}
+                  {selectedService && <>
                   <div className="space-y-2">
-                    <Label htmlFor="quick-details">Weitere Details</Label>
+                    <Label htmlFor="quick-details">Weitere Hinweise (optional)</Label>
                     <Textarea
                       id="quick-details"
                       placeholder="Sonstige Infos, besondere Anforderungen, Fragen..."
-                      value={formData.details}
-                      onChange={(e) => setFormData({ ...formData, details: e.target.value })}
+                      value={message}
+                      onChange={(e) => setNotes({ ...notes, [selectedService]: e.target.value })}
                       rows={4}
                       className="input-focus resize-none"
                     />
                   </div>
 
-                  <details className="form-extras"><summary>Fotos und Pläne hinzufügen (optional)</summary>
+                  <details id="quote-attachments" className="form-extras"><summary>Fotos und Pläne hinzufügen</summary>
                   {/* Images Upload */}
                   <div className="space-y-2">
                     <Label>Bilder (optional, max. {MAX_IMAGES})</Label>
@@ -2133,7 +653,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           <img src={img.preview} alt={`Bild ${index + 1}`} className="w-full h-full object-cover" />
                           <button
                             type="button"
-                            onClick={() => removeImage(index)}
+                            onClick={() => removeFile("images", index)}
                             aria-label={`${img.file.name} entfernen`}
                             className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center"
                           >
@@ -2174,7 +694,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           <span className="text-xs truncate max-w-[100px]">{plan.file.name}</span>
                           <button
                             type="button"
-                            onClick={() => removePlan(index)}
+                            onClick={() => removeFile("plans", index)}
                             aria-label={`${plan.file.name} entfernen`}
                             className="w-4 h-4 bg-destructive text-white rounded-full flex items-center justify-center"
                           >
@@ -2206,6 +726,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
 
                     <ProgressBar state={attachmentProgress} />
                   </details>
+                  </>}
                   {/* Error */}
                   {error && (
                     <p role="alert" className="text-sm text-destructive">{error}</p>
@@ -2213,8 +734,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
 
                   {/* Next Button */}
                   <Button
-                    type="button"
-                    onClick={goToStep2}
+                    type="submit"
                     disabled={preparingFiles}
                     className="w-full btn-primary py-3 rounded-xl"
                   >
@@ -2227,40 +747,22 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               {/* Step 2: Contact Details */}
               {currentStep === 2 && (
                 <div className="space-y-5">
-                  {businessInquiry && (
-                    <div className="space-y-2">
-                      <Label htmlFor="quick-company">Firma oder Organisation *</Label>
-                      <Input id="quick-company" autoComplete="organization" value={formData.company}
-                        onChange={e => setFormData({ ...formData, company: e.target.value })} required disabled={isSubmitting} />
-                    </div>
-                  )}
-                  {(businessInquiry || ["kuechenmontage", "moebelmontage"].includes(formData.service)) && (
-                    <div className="space-y-2">
-                      <Label htmlFor="quick-worksite">Einsatzort (PLZ und Ort)</Label>
-                      <Input id="quick-worksite" value={formData.worksite}
-                        onChange={e => setFormData({ ...formData, worksite: e.target.value })} disabled={isSubmitting} />
-                    </div>
-                  )}
-                  {businessInquiry && (
-                    <div className="space-y-2">
-                      <Label htmlFor="quick-timeslot">Zugangs- oder Lieferzeitfenster (optional)</Label>
-                      <Input id="quick-timeslot" value={formData.timeSlot}
-                        onChange={e => setFormData({ ...formData, timeSlot: e.target.value })} disabled={isSubmitting} />
-                    </div>
-                  )}
                   {/* Name */}
                   <div className="space-y-2">
-                    <Label htmlFor="quick-name">{businessInquiry ? "Ansprechperson" : "Ihr Name"} *</Label>
+                    <Label htmlFor="quick-name">{isBusiness ? "Ansprechperson" : "Ihr Name"} *</Label>
                     <Input
                       id="quick-name"
                       type="text"
                       autoComplete="name"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFieldError(null); }}
+                      aria-invalid={fieldError?.field === "name" || undefined}
+                      aria-describedby={fieldError?.field === "name" ? "quote-name-error" : undefined}
                       required
                       className="input-focus"
                       disabled={isSubmitting}
                     />
+                    {fieldError?.field === "name" && <p id="quote-name-error" role="alert" className="text-sm text-destructive">{fieldError.message}</p>}
                   </div>
 
                   {/* Phone */}
@@ -2271,11 +773,14 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                       type="tel"
                       autoComplete="tel"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setFieldError(null); }}
+                      aria-invalid={fieldError?.field === "phone" || undefined}
+                      aria-describedby={fieldError?.field === "phone" ? "quote-phone-error" : undefined}
                       required
                       className="input-focus"
                       disabled={isSubmitting}
                     />
+                    {fieldError?.field === "phone" && <p id="quote-phone-error" role="alert" className="text-sm text-destructive">{fieldError.message}</p>}
                   </div>
 
                   {/* Email */}
@@ -2299,6 +804,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                   {error && (
                     <div
                       id="quick-submit-error"
+                      tabIndex={-1}
                       role="alert"
                       aria-live="assertive"
                       className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2"

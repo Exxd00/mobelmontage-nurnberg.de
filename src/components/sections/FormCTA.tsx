@@ -27,7 +27,7 @@ export default function FormCTA({
       <h2>{title ?? `${subject} anfragen`}</h2>
       <p>
         {subtitle ??
-          "Beschreiben Sie kurz Ihr Vorhaben und nennen Sie den Einsatzort. Fotos, Maße oder ein Produktlink helfen uns, das Angebot zu erstellen."}
+          "Im Formular geben Sie die Arbeiten, den Einsatzort und Ihren Terminwunsch an. Unser Montageteam prüft den Umfang und meldet sich mit Ihrem persönlichen Angebot oder einer Rückfrage."}
       </p>
       <div className={styles.links}>
         <Link className={styles.primary} href={href}>
