@@ -77,8 +77,11 @@ export default function DatenschutzPage() {
                   werden Ihre Angaben aus dem Anfrageformular inklusive der von
                   Ihnen dort angegebenen Kontaktdaten zwecks Bearbeitung der
                   Anfrage und für den Fall von Anschlussfragen bei uns
-                  gespeichert. Diese Daten geben wir nicht ohne Ihre
-                  Einwilligung weiter.
+                  gespeichert. Wenn Sie Fotos oder Pläne auswählen, bereitet
+                  Ihr Browser die Dateien vor. Erst beim Absenden werden sie
+                  mit Ihrer Anfrage über unseren E-Mail-Dienst an unseren
+                  Betrieb übermittelt. Für Rückrufwünsche verwenden wir die
+                  angegebene Telefonnummer und Ihre freiwilligen Zeitangaben.
                 </p>
                 <p className="text-foreground mt-2">
                   Die Verarbeitung dieser Daten erfolgt auf Grundlage von Art. 6

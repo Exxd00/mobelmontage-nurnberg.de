@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { projects } from "@/lib/projects";
+import { businessInquiryKeys } from "@/lib/business-inquiries";
 import {
   cityServices,
   directoryCities,
@@ -11,6 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const paths = [
     "/",
     "/leistungen",
+    "/firmenkunden",
+    ...businessInquiryKeys.map((key) => `/firmenkunden/${key}`),
     "/staedte",
     "/arbeiten",
     "/impressum",

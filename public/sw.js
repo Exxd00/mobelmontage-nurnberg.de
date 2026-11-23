@@ -1,6 +1,6 @@
-const offlineCache = 'mobelmontage-offline-v2';
+const offlineCache = 'mobelmontage-offline-v3';
 const offlinePage = '/offline.html';
-const obsoleteCaches = ['static-v1', 'dynamic-v1', 'mobelmontage-v1'];
+const obsoleteCaches = ['static-v1', 'dynamic-v1', 'mobelmontage-v1', 'mobelmontage-offline-v2'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

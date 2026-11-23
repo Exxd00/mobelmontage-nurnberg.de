@@ -9,21 +9,14 @@ import styles from "@/components/service/Directory.module.css";
 import { services } from "@/lib/data";
 import { pageMetadata } from "@/lib/service-directory";
 import { serviceBasics } from "@/lib/service-guide";
+import { priceExamples } from "@/lib/price-examples";
+import PriceEstimator from "./PriceEstimator";
 
 export const metadata = pageMetadata(
   "Leistungen & Preise für Lieferung und Montage | Möbelmontage Nürnberg",
   "Lieferung ab 39 €, Möbelmontage ab 59 € und Küchenmontage ab 149 €. Richtpreise, Beispiele und Angaben für Ihr individuelles Angebot in der Region Nürnberg.",
   "/leistungen",
 );
-
-const examples = [
-  ["PAX-Schrank, 2 m", "ab 89 €", "ca. 2 Std."],
-  ["KALLAX-Regal", "ab 35 €", "ca. 30 Min."],
-  ["MALM-Bett, 160 cm", "ab 59 €", "ca. 1 Std."],
-  ["HEMNES-Kommode", "ab 45 €", "ca. 45 Min."],
-  ["IKEA-Küche mit zehn Schränken", "ab 349 €", "ca. 1 Tag"],
-  ["Lieferung und Montage eines PAX-Schranks", "ab 149 €", "ca. 3 Std."],
-];
 
 export default function LeistungenPage() {
   return (
@@ -50,33 +43,38 @@ export default function LeistungenPage() {
           })}
         </div>
       </section>
-      <section className={styles.band}>
-        <h2>Wie viel kostet der Aufbau?</h2>
+      <section id="preisfinder" className={styles.band}>
+        <h2>Was kostet mein Vorhaben?</h2>
         <p>
-          Diese Beispiele dienen zur Orientierung. Modell, Montageumfang und
-          Anfahrt bestimmen das konkrete Angebot.
+          Wählen Sie einen Beispielauftrag oder eine Leistung. Der angezeigte
+          Richtpreis hilft bei der Planung. Ihr persönliches Angebot richtet sich
+          nach Modell, Umfang, Zugang und Anfahrt.
         </p>
-        <table className={styles.priceTable}>
-          <caption className="sr-only">
-            Preis- und Zeitbeispiele für einzelne Aufträge
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Auftrag</th>
-              <th scope="col">Richtpreis</th>
-              <th scope="col">Zeitbedarf</th>
-            </tr>
-          </thead>
-          <tbody>
-            {examples.map(([item, price, time]) => (
-              <tr key={item}>
-                <th scope="row">{item}</th>
-                <td>{price}</td>
-                <td>{time}</td>
+        <PriceEstimator />
+        <details>
+          <summary>Alle sechs Preisbeispiele vergleichen</summary>
+          <table className={styles.priceTable}>
+            <caption className="sr-only">
+              Preis- und Zeitbeispiele für einzelne Aufträge
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Auftrag</th>
+                <th scope="col">Richtpreis</th>
+                <th scope="col">Zeitbedarf</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {priceExamples.filter((example) => example.duration).map((example) => (
+                <tr key={example.id}>
+                  <th scope="row">{example.title}</th>
+                  <td>ab {example.from}</td>
+                  <td>{example.duration}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
       </section>
       <KitchenExample />
       {services.map((group) => (

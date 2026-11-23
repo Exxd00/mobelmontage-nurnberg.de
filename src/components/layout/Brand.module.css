@@ -1,0 +1,59 @@
+.header, .footer {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  flex: 0 0 auto;
+  color: inherit;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: .75rem;
+  background: #F7F5EF;
+  color: #202A22;
+}
+
+.mark svg { width: 1.5rem; height: 1.5rem; }
+.wordmark { font-size: 1rem; }
+.subline, .services { display: flex; align-items: baseline; gap: .3rem; }
+.subline { margin-top: .13rem; font-size: .625rem; font-weight: 500; }
+.services > span:first-child { color: #E8412C; }
+.rotation { display: grid; }
+.rotation > span { grid-area: 1 / 1; opacity: 0; }
+.rotation > span:first-child { opacity: 1; }
+.footer { font-size: 1rem; }
+.footer .mark { width: 2.25rem; height: 2.25rem; border-radius: .5rem; }
+.footer .mark svg { width: 1rem; height: 1rem; }
+
+@media (min-width: 640px) {
+  .wordmark { font-size: 1.125rem; }
+  .subline { font-size: .75rem; }
+}
+@media (min-width: 768px) {
+  .header .mark { width: 3rem; height: 3rem; }
+  .wordmark { font-size: 1.25rem; }
+  .subline { font-size: .875rem; }
+}
+@media (max-width: 479px) {
+  .services { display: none; }
+}
+@media (max-width: 359px) {
+  .header { gap: .35rem; }
+  .header .mark { width: 2.125rem; height: 2.125rem; }
+  .wordmark { font-size: .875rem; }
+}
+@media (prefers-reduced-motion: no-preference) and (min-width: 480px) {
+  .rotation > span { animation: service 6s step-end infinite; }
+  .rotation > span:nth-child(2) { animation-delay: -4s; }
+  .rotation > span:nth-child(3) { animation-delay: -2s; }
+}
+@keyframes service {
+  0% { opacity: 1; }
+  33.333%, 100% { opacity: 0; }
+}

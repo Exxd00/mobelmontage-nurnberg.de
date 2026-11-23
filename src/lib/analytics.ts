@@ -64,6 +64,7 @@ export type EventAction =
   | 'whatsapp_confirmed'
   | 'whatsapp_cancelled'
   | 'email_click'
+  | 'callback_requested'
   | 'cta_click'
   | 'service_view'
   | 'city_view'
@@ -152,7 +153,6 @@ export function trackWhatsAppConfirmed(source: string): void {
   // Send to Google Sheets as 'whatsapp' event type
   sendToGoogleSheets('whatsapp', source);
 
-  trackLead({ source: 'whatsapp' });
 }
 
 // Track WhatsApp cancellation (GA4 only, no Google Sheets)
@@ -179,7 +179,6 @@ export function trackPhoneConfirmed(phoneNumber: string, source: string): void {
   // Send to Google Sheets as 'phone_call' event type
   sendToGoogleSheets('phone_call', source, phoneNumber);
 
-  trackLead({ source: 'phone_call' });
 }
 
 // Track phone cancellation (GA4 only, no Google Sheets)

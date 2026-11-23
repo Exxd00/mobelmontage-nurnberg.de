@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Armchair, ArrowRight, ArrowUpRight, CookingPot, MapPin, Plus, Truck } from "lucide-react";
+import { Armchair, ArrowRight, ArrowUpRight, Building2, CookingPot, MapPin, MessageCircle, Phone, PhoneIncoming, Plus, Truck } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import InquiryPanel from "@/components/sections/InquiryPanel";
 import { projects } from "@/lib/projects";
+import { businessInfo } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: { absolute: "Möbelmontage Nürnberg | Küchenmontage, Möbelaufbau & Lieferung" },
@@ -13,9 +14,10 @@ export const metadata: Metadata = {
 };
 
 const services = [
-  { slug: "kuechenmontage", label: "Küchenmontage", price: "149", detail: "Vom Ausrichten der Unterschränke bis zum Einpassen der Arbeitsplatte.", icon: CookingPot },
-  { slug: "moebelmontage", label: "Möbelmontage", price: "59", detail: "Aufbau von Schränken, Betten und Regalen, auch von IKEA.", icon: Armchair },
-  { slug: "lieferungen", label: "Möbellieferung", price: "39", detail: "Abholung im Möbelhaus und Lieferung bis in Ihre Wohnung.", icon: Truck },
+  { href: "/service/kuechenmontage", label: "Küche montieren", price: "ab 149 €", detail: "Von der Schrankzeile bis zur Insel mit eingepasster Arbeitsplatte.", icon: CookingPot },
+  { href: "/service/moebelmontage", label: "Möbel aufbauen", price: "ab 59 €", detail: "Schränke, Betten und Regale nach Anleitung aufbauen lassen.", icon: Armchair },
+  { href: "/service/lieferungen", label: "Möbel liefern", price: "ab 39 €", detail: "Möbel abholen und bis zum vereinbarten Stellplatz bringen lassen.", icon: Truck },
+  { href: "/firmenkunden", label: "Für Firmen", price: "Nach Aufwand", detail: "Aufbau im Büro, Lieferung zum Betrieb oder Montage einer Ausstellungsküche.", icon: Building2 },
 ];
 
 const questions = [
@@ -33,21 +35,26 @@ export default function HomePage() {
       <div className="opening-copy">
         <p className="service-area"><MapPin size={15} aria-hidden="true"/> Nürnberg · Fürth · Erlangen</p>
         <h1>Möbelmontage <br/><em>in Nürnberg.</em></h1>
-        <p className="opening-intro">Wir montieren Ihre Möbel und Küchen und liefern vom Möbelhaus bis in Ihre Wohnung. Sie erhalten ein Angebot passend zu Ihrem Auftrag.</p>
-        <div className="opening-links"><a className="studio-button" href="#kontakt-form">Angebot anfragen <ArrowUpRight size={18}/></a><Link className="studio-link" href="/arbeiten">Projekte ansehen <ArrowRight size={17}/></Link></div>
+        <p className="opening-intro">Die neue Küche ist geplant, der Schrank noch im Karton? Wir bauen Ihre Möbel auf oder liefern sie bis in Ihre Wohnung. Wählen Sie Ihr Vorhaben für ein persönliches Angebot.</p>
+        <div className="opening-links"><a className="studio-button" href="#leistungen">Vorhaben wählen <ArrowRight size={18}/></a><Link className="studio-link" href="/leistungen#preisfinder">Preis einschätzen <ArrowUpRight size={17}/></Link></div>
+        <div className="opening-contacts" role="group" aria-label="Kontaktwege">
+          <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}><Phone size={16} aria-hidden="true"/>Anrufen</a>
+          <a href={"https://wa.me/" + businessInfo.whatsapp.replace(/\D/g, "")}><MessageCircle size={16} aria-hidden="true"/>WhatsApp</a>
+          <Link href="/rueckruf"><PhoneIncoming size={16} aria-hidden="true"/>Rückruf</Link>
+        </div>
       </div>
       <figure className="opening-photo">
         <Link href="/arbeiten/weisse-messekueche" aria-label="Projekt ansehen: weiße Messeküche mit Glasvitrinen">
-          <img src="/projekte/weisse-messekueche/hero-1080.webp" srcSet="/projekte/weisse-messekueche/hero-640.webp 640w, /projekte/weisse-messekueche/hero-1080.webp 1080w" sizes="(max-width: 740px) 92vw, (max-width: 1240px) 52vw, 660px" width="1080" height="720" alt="Fertig montierte weiße Messeküche mit beleuchteten Glasvitrinen und dunkler Arbeitsplatte" fetchPriority="high"/>
+          <img src="/projekte/weisse-messekueche/hero-1080.webp" srcSet="/projekte/weisse-messekueche/hero-640.webp 640w, /projekte/weisse-messekueche/hero-1080.webp 1080w" sizes="(max-width: 539px) 37vw, (max-width: 780px) 44vw, (max-width: 1470px) 45vw, 662px" width="1080" height="720" alt="Fertig montierte weiße Messeküche mit beleuchteten Glasvitrinen und dunkler Arbeitsplatte" fetchPriority="high"/>
           <span className="opening-caption">Weiße Messeküche <ArrowUpRight size={16}/></span>
         </Link>
       </figure>
     </section>
     <section className="studio-services" id="leistungen"><div className="studio-shell">
-      <div className="section-heading"><h2>Unsere Leistungen</h2><Link className="studio-link" href="/leistungen">Leistungen & Preise <ArrowRight size={16}/></Link></div>
-      <div className="service-grid">{services.map(({slug,label,price,detail,icon: Icon}) =>
-        <Link key={slug} className="service-item" href={"/service/"+slug}>
-          <span className="service-item-top"><Icon size={26} strokeWidth={1.55}/><span>ab {price} €</span></span>
+      <div className="section-heading"><h2>Was möchten Sie montieren oder liefern lassen?</h2><Link className="studio-link" href="/leistungen">Leistungen & Preise <ArrowRight size={16}/></Link></div>
+      <div className="service-grid">{services.map(({href,label,price,detail,icon: Icon}) =>
+        <Link key={href} className="service-item" href={href}>
+          <span className="service-item-top"><Icon size={26} strokeWidth={1.55}/><span>{price}</span></span>
           <h3>{label} <ArrowUpRight size={18}/></h3><p>{detail}</p>
         </Link>)}</div>
     </div></section>

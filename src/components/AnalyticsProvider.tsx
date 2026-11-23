@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { consentChanged, consentKey, hasAnalyticsConsent } from "@/lib/consent";
 import { clearAttribution, initTracking } from "@/lib/tracking";
-import { initScrollTracking, initTimeTracking, trackCityView, trackServiceView, trackPhoneClick, trackWhatsAppClick, trackEvent } from "@/lib/analytics";
+import { initScrollTracking, initTimeTracking, trackCityView, trackServiceView, trackEvent } from "@/lib/analytics";
 
 const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ?? "G-L3LZL8MWC4";
-const reservedPaths = new Set(["kontakt", "leistungen", "arbeiten", "impressum", "datenschutz", "staedte", "admin", "thank-you"]);
+const reservedPaths = new Set(["kontakt", "leistungen", "arbeiten", "impressum", "datenschutz", "staedte", "admin", "thank-you", "firmenkunden", "rueckruf"]);
 let tagStarted = false;
 
 function applyConsent(enabled: boolean) {
@@ -80,15 +80,14 @@ export default function AnalyticsProvider({ children }: { children?: React.React
       const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
       if (!link || event.defaultPrevented) return;
       const section = link.closest("header,footer,main")?.tagName.toLowerCase() || "page";
-      if (link.protocol === "tel:") trackPhoneClick(link.pathname, section);
-      if (link.hostname === "wa.me") trackWhatsAppClick(section);
+      if (link.dataset.intent) trackEvent({ action: "cta_click", category: "navigation", label: link.dataset.intent, customParams: { origin_page: pathname } });
       if (link.protocol === "mailto:") trackEvent({ action: "email_click", category: "contact", label: section });
     }
-    document.addEventListener("click", contactLinkClick);
+    document.addEventListener("click", contactLinkClick, true);
     return () => {
       stopScroll?.();
       stopTimer?.();
-      document.removeEventListener("click", contactLinkClick);
+      document.removeEventListener("click", contactLinkClick, true);
     };
   }, [enabled, pathname]);
 
