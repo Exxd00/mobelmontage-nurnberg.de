@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { projects } from "@/lib/projects";
 import { Download, Image as ImageIcon, FileImage, Lock } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -15,52 +16,8 @@ const assets = {
     name: "Favicon / Logo",
     path: "/favicon.svg",
     type: "SVG",
-    description: "الأيقونة الرئيسية للموقع - شكل منزل برتقالي",
+    description: "الأيقونة الرئيسية لموقع تركيب الأثاث في نورنبرغ",
   },
-  galleryImages: [
-    {
-      id: 1,
-      name: "Moderne Küche Montage",
-      src: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=90",
-      category: "Küche",
-      downloadName: "kueche-montage-1.jpg",
-    },
-    {
-      id: 2,
-      name: "Wohnzimmer Einrichtung",
-      src: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1200&q=90",
-      category: "Wohnzimmer",
-      downloadName: "wohnzimmer-1.jpg",
-    },
-    {
-      id: 3,
-      name: "Schlafzimmer Schrank",
-      src: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200&q=90",
-      category: "Schlafzimmer",
-      downloadName: "schlafzimmer-schrank-1.jpg",
-    },
-    {
-      id: 4,
-      name: "IKEA PAX Schrank",
-      src: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200&q=90",
-      category: "Schränke",
-      downloadName: "pax-schrank-1.jpg",
-    },
-    {
-      id: 5,
-      name: "Küchen Installation",
-      src: "https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=1200&q=90",
-      category: "Küche",
-      downloadName: "kueche-installation-1.jpg",
-    },
-    {
-      id: 6,
-      name: "Büromöbel Aufbau",
-      src: "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=1200&q=90",
-      category: "Büro",
-      downloadName: "buero-moebel-1.jpg",
-    },
-  ],
   googleAdsImages: {
     required: [
       {
@@ -90,7 +47,7 @@ export default function AdminAssetsPage() {
         <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-700">
           <Lock className="w-6 h-6 text-orange-500" />
           <h1 className="text-2xl font-bold">Admin - Assets Download</h1>
-          <span className="text-xs bg-red-600 px-2 py-1 rounded">صفحة خاصة - غير مفهرسة</span>
+          <span className="text-xs bg-red-600 px-2 py-1 rounded">مكتبة ملفات الموقع</span>
         </div>
 
         {/* Logo Section */}
@@ -128,28 +85,30 @@ export default function AdminAssetsPage() {
             صور المعرض (Gallery)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {assets.galleryImages.map((image) => (
-              <div key={image.id} className="bg-gray-800 rounded-xl overflow-hidden">
+            {projects.map((project) => (
+              <div key={project.slug} className="bg-gray-800 rounded-xl overflow-hidden">
                 <div className="aspect-square relative">
                   <img
-                    src={image.src}
-                    alt={image.name}
+                    src={project.cover.src}
+                    loading="lazy"
+                    width={1080}
+                    height={720}
+                    alt={project.cover.alt}
                     className="w-full h-full object-cover"
                   />
                   <span className="absolute top-2 right-2 bg-black/70 px-2 py-1 rounded text-xs">
-                    {image.category}
+                    Messeküche
                   </span>
                 </div>
                 <div className="p-4">
-                  <h3 className="font-medium mb-2">{image.name}</h3>
+                  <h3 className="font-medium mb-2">{project.title}</h3>
                   <a
-                    href={image.src}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={project.cover.src}
+                    download={`${project.slug}.webp`}
                     className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-lg transition-colors w-full"
                   >
                     <Download className="w-4 h-4" />
-                    فتح وتحميل
+                    تحميل WebP
                   </a>
                 </div>
               </div>

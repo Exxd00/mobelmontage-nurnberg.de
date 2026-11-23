@@ -147,7 +147,7 @@ export default function ThankYouPage() {
       </head>
 
       <Header />
-      <main className="min-h-[80vh] flex items-center justify-center" style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}>
+      <main id="main-content" className="min-h-[70vh] flex items-center justify-center py-12">
         <div className="container-max">
           <Suspense fallback={<LoadingFallback />}>
             <ThankYouContent />

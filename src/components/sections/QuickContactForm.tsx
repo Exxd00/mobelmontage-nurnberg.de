@@ -291,15 +291,15 @@ async function uploadFile(file: File | Blob, fileName: string): Promise<string> 
   return '';
 }
 
-export default function QuickContactForm() {
+export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false }: { initialService?: string; initialDetails?: string; embedded?: boolean } = {}) {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const planInputRef = useRef<HTMLInputElement>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    service: "",
-    details: "",
+    service: initialService,
+    details: initialDetails,
     name: "",
     phone: "",
     email: "",
@@ -426,6 +426,7 @@ export default function QuickContactForm() {
   const [images, setImages] = useState<UploadedFile[]>([]);
   const [plans, setPlans] = useState<UploadedFile[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sentInline, setSentInline] = useState(false);
   const [error, setError] = useState("");
   const [hasStartedForm, setHasStartedForm] = useState(false);
 
@@ -976,7 +977,12 @@ export default function QuickContactForm() {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // One-time access flag for the thank-you page (checked + cleared there)
-      sessionStorage.setItem("form_submitted", "true");
+      try {
+        sessionStorage.setItem("form_submitted", "true");
+      } catch {
+        setSentInline(true);
+        return;
+      }
       router.push("/thank-you");
     } catch (err) {
       const errorMessage =
@@ -2329,7 +2335,8 @@ export default function QuickContactForm() {
   }, [hasStartedForm]);
 
   return (
-    <section id="kontakt-form" className="section-padding bg-muted/30">
+    <section id={embedded ? undefined : "kontakt-form"} className={embedded ? "embedded-inquiry" : "section-padding bg-muted/30"}>
+      {sentInline ? <div role="status"><h2>Ihre Anfrage ist angekommen.</h2><p>Vielen Dank. Wir melden uns über Ihre angegebenen Kontaktdaten.</p></div> : (
       <div className="container-max">
         <div className="max-w-2xl mx-auto">
           <div className="glass-card rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-xl">
@@ -2393,12 +2400,16 @@ export default function QuickContactForm() {
                     </Select>
                   </div>
 
-                  {/* Service-specific fields */}
-                  {formData.service === "kuechenmontage" && renderKitchenFields()}
-                  {formData.service === "moebelmontage" && renderFurnitureFields()}
-                  {formData.service === "lieferungen" && renderDeliveryFields()}
-                  {formData.service === "umzuege" && renderMovingFields()}
-                  {formData.service === "entruempelung" && renderClearanceFields()}
+                  {formData.service && formData.service !== "andere" && (
+                    <details className="form-extras">
+                      <summary>Angaben zu Umfang und Termin ergänzen (optional)</summary>
+                      {formData.service === "kuechenmontage" && renderKitchenFields()}
+                      {formData.service === "moebelmontage" && renderFurnitureFields()}
+                      {formData.service === "lieferungen" && renderDeliveryFields()}
+                      {formData.service === "umzuege" && renderMovingFields()}
+                      {formData.service === "entruempelung" && renderClearanceFields()}
+                    </details>
+                  )}
 
                   {/* Details */}
                   <div className="space-y-2">
@@ -2413,6 +2424,7 @@ export default function QuickContactForm() {
                     />
                   </div>
 
+                  <details className="form-extras"><summary>Fotos und Pläne hinzufügen (optional)</summary>
                   {/* Images Upload */}
                   <div className="space-y-2">
                     <Label>Bilder (optional, max. {MAX_IMAGES})</Label>
@@ -2490,6 +2502,7 @@ export default function QuickContactForm() {
                     />
                   </div>
 
+                  </details>
                   {/* Error */}
                   {error && (
                     <p className="text-sm text-destructive">{error}</p>
@@ -2631,6 +2644,7 @@ export default function QuickContactForm() {
           </div>
         </div>
       </div>
+      )}
     </section>
   );
 }

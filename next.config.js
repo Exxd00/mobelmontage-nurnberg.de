@@ -1,12 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-    ],
     // Optimize images
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
@@ -16,12 +10,6 @@ const nextConfig = {
     'localhost',
     '*.preview.same-app.com',
   ],
-  // Enable experimental features for better performance
-  experimental: {
-    // Inline critical CSS to reduce render-blocking.
-    // Only in production: in dev it (critters) drastically slows down compiles.
-    optimizeCss: process.env.NODE_ENV === 'production',
-  },
   // Compress responses
   compress: true,
   // Power by header removal
@@ -34,6 +22,14 @@ const nextConfig = {
   // Add security headers for thank-you page
   async headers() {
     return [
+      {
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache' }],
+      },
+      {
+        source: '/projekte/:path*.webp',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=86400' }],
+      },
       {
         source: '/thank-you',
         headers: [

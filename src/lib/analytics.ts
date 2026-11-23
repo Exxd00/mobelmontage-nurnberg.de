@@ -1,9 +1,10 @@
 /**
  * Analytics & Lead Tracking Utility
- * Supports Google Analytics 4, Facebook Pixel, Google Sheets, and custom events
+ * Google Analytics 4 and confirmed contact actions.
  */
 
-import { getTrackingData, getGCLID, getCurrentPage, getTrafficSource } from './tracking';
+import { getTrackingData } from './tracking';
+import { hasAnalyticsConsent } from './consent';
 
 // Send event to Google Sheets via API
 // Only called for confirmed actions: phone_call, whatsapp, form
@@ -12,12 +13,14 @@ async function sendToGoogleSheets(
   source: string,
   phoneNumber?: string
 ): Promise<void> {
+  if (!hasAnalyticsConsent()) return;
   try {
     // Get tracking data
     const tracking = getTrackingData();
 
     await fetch('/api/track-event', {
       method: 'POST',
+      keepalive: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -39,7 +42,6 @@ async function sendToGoogleSheets(
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
-    fbq?: (...args: unknown[]) => void;
     dataLayer?: unknown[];
   }
 }
@@ -88,7 +90,7 @@ interface TrackLeadParams {
 
 // Track general events
 export function trackEvent({ action, category, label, value, customParams }: TrackEventParams): void {
-  // Google Analytics 4
+  if (!hasAnalyticsConsent()) return;
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', action, {
       event_category: category,
@@ -96,19 +98,6 @@ export function trackEvent({ action, category, label, value, customParams }: Tra
       value: value,
       ...customParams,
     });
-  }
-
-  // Facebook Pixel
-  if (typeof window !== 'undefined' && window.fbq) {
-    const fbEvent = mapToFacebookEvent(action);
-    if (fbEvent) {
-      window.fbq('track', fbEvent, {
-        content_category: category,
-        content_name: label,
-        value: value,
-        ...customParams,
-      });
-    }
   }
 
   // Console log in development
@@ -119,47 +108,15 @@ export function trackEvent({ action, category, label, value, customParams }: Tra
 
 // Track lead generation
 export function trackLead({ source, service, city, phone, email, value }: TrackLeadParams): void {
-  const leadData = {
+  if (!hasAnalyticsConsent()) return;
+  window.gtag?.('event', 'generate_lead', {
     lead_source: source,
     service_type: service,
-    city: city,
+    city,
     has_phone: !!phone,
     has_email: !!email,
-    estimated_value: value || 59, // Default minimum value
-    timestamp: new Date().toISOString(),
-  };
-
-  // Google Analytics 4 - Lead event
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'generate_lead', {
-      currency: 'EUR',
-      value: value || 59,
-      ...leadData,
-    });
-  }
-
-  // Facebook Pixel - Lead event
-  if (typeof window !== 'undefined' && window.fbq) {
-    window.fbq('track', 'Lead', {
-      content_name: service || 'General Inquiry',
-      content_category: source,
-      value: value || 59,
-      currency: 'EUR',
-    });
-  }
-
-  // Store lead in localStorage for retargeting
-  try {
-    const existingLeads = JSON.parse(localStorage.getItem('leads') || '[]');
-    existingLeads.push(leadData);
-    localStorage.setItem('leads', JSON.stringify(existingLeads.slice(-10))); // Keep last 10
-  } catch {
-    // Ignore storage errors
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🎯 Lead tracked:', leadData);
-  }
+    ...(value === undefined ? {} : { value, currency: 'EUR' }),
+  });
 }
 
 // Track phone call clicks (GA4 only, no Google Sheets)
@@ -195,19 +152,7 @@ export function trackWhatsAppConfirmed(source: string): void {
   // Send to Google Sheets as 'whatsapp' event type
   sendToGoogleSheets('whatsapp', source);
 
-  trackLead({
-    source: 'whatsapp',
-    value: 40,
-  });
-
-  // Track as Google Ads conversion
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'conversion', {
-      send_to: 'AW-CONVERSION_ID/WHATSAPP_LABEL',
-      value: 40,
-      currency: 'EUR',
-    });
-  }
+  trackLead({ source: 'whatsapp' });
 }
 
 // Track WhatsApp cancellation (GA4 only, no Google Sheets)
@@ -234,19 +179,7 @@ export function trackPhoneConfirmed(phoneNumber: string, source: string): void {
   // Send to Google Sheets as 'phone_call' event type
   sendToGoogleSheets('phone_call', source, phoneNumber);
 
-  trackLead({
-    source: 'phone_call',
-    value: 50,
-  });
-
-  // Track as Google Ads conversion
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'conversion', {
-      send_to: 'AW-CONVERSION_ID/PHONE_LABEL',
-      value: 50,
-      currency: 'EUR',
-    });
-  }
+  trackLead({ source: 'phone_call' });
 }
 
 // Track phone cancellation (GA4 only, no Google Sheets)
@@ -286,13 +219,6 @@ export function trackFormSubmit(formName: string, service?: string, city?: strin
       city: city,
     },
   });
-
-  trackLead({
-    source: formName,
-    service: service,
-    city: city,
-    value: getServiceValue(service),
-  });
 }
 
 // Track page/service views
@@ -324,33 +250,8 @@ export function trackScrollDepth(percentage: number): void {
   }
 }
 
-// Helper: Map events to Facebook standard events
-function mapToFacebookEvent(action: EventAction): string | null {
-  const mapping: Partial<Record<EventAction, string>> = {
-    form_submit: 'Lead',
-    phone_click: 'Contact',
-    whatsapp_click: 'Contact',
-    cta_click: 'InitiateCheckout',
-    service_view: 'ViewContent',
-  };
-  return mapping[action] || null;
-}
-
-// Helper: Get estimated service value
-function getServiceValue(service?: string): number {
-  if (!service) return 59;
-
-  const values: Record<string, number> = {
-    lieferungen: 39,
-    moebelmontage: 89,
-    kuechenmontage: 249,
-  };
-
-  return values[service] || 59;
-}
-
 // Initialize scroll tracking
-export function initScrollTracking(): void {
+export function initScrollTracking() {
   if (typeof window === 'undefined') return;
 
   let maxScroll = 0;
@@ -374,10 +275,11 @@ export function initScrollTracking(): void {
   };
 
   window.addEventListener('scroll', handleScroll, { passive: true });
+  return () => window.removeEventListener('scroll', handleScroll);
 }
 
 // Initialize time on page tracking
-export function initTimeTracking(): void {
+export function initTimeTracking() {
   if (typeof window === 'undefined') return;
 
   const startTime = Date.now();
@@ -400,5 +302,6 @@ export function initTimeTracking(): void {
     }
   };
 
-  setInterval(checkTime, 5000);
+  const timer = window.setInterval(checkTime, 5000);
+  return () => window.clearInterval(timer);
 }

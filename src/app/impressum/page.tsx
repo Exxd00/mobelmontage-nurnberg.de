@@ -16,7 +16,7 @@ export default function ImpressumPage() {
   return (
     <>
       <Header />
-      <main className="pb-16" style={{ paddingTop: 'calc(6rem + env(safe-area-inset-top, 0px))' }}>
+      <main id="main-content" className="studio-legal pb-16 pt-12">
         <div className="container-max">
           <div className="max-w-3xl mx-auto">
             <h1 className="text-3xl md:text-4xl font-bold mb-8">Impressum</h1>

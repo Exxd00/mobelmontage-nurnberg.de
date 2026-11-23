@@ -1,0 +1,21 @@
+// Historical generated URL segments. These names never establish an actual service area.
+export const legacyCitySlugs = new Set([
+  "altbronn", "alteck", "altegg", "altfelden", "altgruen", "altgrund", "altleiten", "altmoos",
+  "altmuehl", "altrain", "altrieth", "altsee", "altstein", "altwald", "altwang", "altweiher",
+  "grossbronn", "grosseck", "grossegg", "grossfelden", "grossgruen", "grossgrund", "grossleiten", "grossmoos",
+  "grossmuehl", "grossrain", "grossrieth", "grosssee", "grossstein", "grosswald", "grosswang", "grossweiher",
+  "hinterbronn", "hintereck", "hinteregg", "hinterfelden", "hintergruen", "hintergrund", "hinterleiten", "hintermoos",
+  "hintermuehl", "hinterrain", "hinterrieth", "hintersee", "hinterstein", "hinterwald", "hinterwang", "hinterweiher",
+  "kleinbronn", "kleineck", "kleinegg", "kleinfelden", "kleingruen", "kleingrund", "kleinleiten", "kleinmoos",
+  "kleinmuehl", "kleinrain", "kleinrieth", "kleinsee", "kleinstein", "kleinwald", "kleinwang", "kleinweiher",
+  "mittelbronn", "mitteleck", "mittelegg", "mittelfelden", "mittelgruen", "mittelgrund", "mittelleiten", "mittelmoos",
+  "mittelmuehl", "mittelrain", "mittelrieth", "mittelsee", "mittelstein", "mittelwald", "mittelwang", "mittelweiher",
+  "neubronn", "neueck", "neuegg", "neufelden", "neugruen", "neugrund", "neuleiten", "neumoos",
+  "neumuehl", "neurain", "neurieth", "neusee", "neustein", "neuwald", "neuwang", "neuweiher",
+  "oberbronn", "obereck", "oberegg", "oberfelden", "obergruen", "obergrund", "oberleiten", "obermoos",
+  "obermuehl", "oberrain", "oberrieth", "obersee", "oberstein", "oberwald", "oberwang", "oberweiher",
+  "unterbronn", "untereck", "unteregg", "unterfelden", "untergruen", "untergrund", "unterleiten", "untermoos",
+  "untermuehl", "unterrain", "unterrieth", "untersee", "unterstein", "unterwald", "unterwang", "unterweiher",
+  "vorderbronn", "vordereck", "vorderegg", "vorderfelden", "vordergruen", "vordergrund", "vorderleiten", "vordermoos",
+  "vordermuehl", "vorderrain", "vorderrieth", "vordersee", "vorderstein", "vorderwald", "vorderwang", "vorderweiher",
+]);

@@ -16,7 +16,7 @@ export default function DatenschutzPage() {
   return (
     <>
       <Header />
-      <main className="pb-16" style={{ paddingTop: 'calc(6rem + env(safe-area-inset-top, 0px))' }}>
+      <main id="main-content" className="studio-legal pb-16 pt-12">
         <div className="container-max">
           <div className="max-w-3xl mx-auto">
             <h1 className="text-3xl md:text-4xl font-bold mb-8">
@@ -93,16 +93,13 @@ export default function DatenschutzPage() {
                   4. Cookies
                 </h2>
                 <p className="text-foreground">
-                  Diese Website verwendet Cookies. Bei Cookies handelt es sich
-                  um Textdateien, die im Internetbrowser bzw. vom
-                  Internetbrowser auf dem Computersystem des Nutzers gespeichert
-                  werden.
+                  Wir speichern Ihre Auswahl zur optionalen Statistik und
+                  die von Ihnen gewählte Darstellung lokal in Ihrem Browser.
                 </p>
                 <p className="text-foreground mt-2">
-                  Wir verwenden technisch notwendige Cookies, um unsere Website
-                  nutzerfreundlicher zu gestalten. Einige Elemente unserer
-                  Internetseite erfordern es, dass der aufrufende Browser auch
-                  nach einem Seitenwechsel identifiziert werden kann.
+                  Das Anfrageformular funktioniert auch bei ausgeschalteter
+                  Statistik. Unter „Cookie-Einstellungen“ am Seitenende können
+                  Sie Ihre Auswahl jederzeit ändern.
                 </p>
               </section>
 
@@ -114,16 +111,18 @@ export default function DatenschutzPage() {
                   Google Analytics
                 </h3>
                 <p className="text-foreground">
-                  Diese Website nutzt Funktionen des Webanalysedienstes Google
+                  Nach Ihrer Zustimmung laden wir den Webanalysedienst Google
                   Analytics. Anbieter ist die Google Ireland Limited
                   (&ldquo;Google&rdquo;), Gordon House, Barrow Street, Dublin 4,
                   Irland.
                 </p>
                 <p className="text-foreground mt-2">
-                  Google Analytics verwendet sog. &ldquo;Cookies&rdquo;. Die
-                  durch den Cookie erzeugten Informationen über Ihre Benutzung
-                  dieser Website werden in der Regel an einen Server von Google
-                  in den USA übertragen und dort gespeichert.
+                  Google Analytics verwendet Cookies für Nutzungsstatistiken.
+                  Wir messen insbesondere Seitenaufrufe und Kontaktaktionen.
+                  Bei erlaubter Statistik ordnen wir Anfragen gegebenenfalls
+                  einer Kampagne zu und speichern deren Kennungen bis zu
+                  30 Tage im Browser. Die Nutzungsdaten können an Server von
+                  Google in den USA übertragen werden.
                 </p>
               </section>
 

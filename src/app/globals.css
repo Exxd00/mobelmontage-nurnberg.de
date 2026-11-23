@@ -6,33 +6,33 @@
 @layer base {
   :root {
     /* Brand Colors - Orange Theme */
-    --brand-primary: 24 95% 53%;
-    --brand-secondary: 24 90% 45%;
-    --brand-accent: 30 100% 50%;
+    --brand-primary: 155 34% 22%;
+    --brand-secondary: 156 30% 27%;
+    --brand-accent: 32 37% 44%;
 
-    --background: 0 0% 100%;
-    --foreground: 20 10% 10%;
+    --background: 50 28% 96%;
+    --foreground: 153 22% 13%;
     --card: 0 0% 100%;
     --card-foreground: 20 10% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 20 10% 10%;
-    --primary: 24 95% 53%;
+    --primary: 155 34% 22%;
     --primary-foreground: 0 0% 100%;
     --secondary: 30 30% 96%;
     --secondary-foreground: 20 10% 10%;
     --muted: 30 20% 96%;
-    --muted-foreground: 20 10% 35%;
+    --muted-foreground: 150 8% 32%;
     --accent: 30 100% 97%;
     --accent-foreground: 24 95% 30%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --border: 30 20% 85%;
     --input: 30 20% 85%;
-    --ring: 24 95% 53%;
+    --ring: 155 34% 22%;
     --radius: 0.75rem;
 
     /* Chart Colors */
-    --chart-1: 24 95% 53%;
+    --chart-1: 155 34% 22%;
     --chart-2: 30 80% 55%;
     --chart-3: 35 70% 50%;
     --chart-4: 20 60% 45%;
@@ -44,14 +44,14 @@
   }
 
   .dark {
-    --background: 20 14% 8%;
+    --background: 154 17% 10%;
     --foreground: 30 20% 98%;
-    --card: 20 14% 10%;
+    --card: 153 16% 14%;
     --card-foreground: 30 20% 98%;
     --popover: 20 14% 10%;
     --popover-foreground: 30 20% 98%;
-    --primary: 24 95% 53%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 145 31% 68%;
+    --primary-foreground: 154 26% 11%;
     --secondary: 20 14% 15%;
     --secondary-foreground: 30 20% 98%;
     --muted: 20 14% 15%;
@@ -62,7 +62,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 20 14% 22%;
     --input: 20 14% 22%;
-    --ring: 24 95% 53%;
+    --ring: 155 34% 22%;
   }
 }
 
@@ -78,7 +78,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-inter, system-ui), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
   /* Safe area utility for PWA/notch devices */
@@ -100,7 +100,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-inter, system-ui), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     @apply font-bold tracking-tight;
   }
 
