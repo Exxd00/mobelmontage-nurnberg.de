@@ -19,3 +19,9 @@ export const legacyCitySlugs = new Set([
   "vorderbronn", "vordereck", "vorderegg", "vorderfelden", "vordergruen", "vordergrund", "vorderleiten", "vordermoos",
   "vordermuehl", "vorderrain", "vorderrieth", "vordersee", "vorderstein", "vorderwald", "vorderwang", "vorderweiher",
 ]);
+
+export function legacyLabel(slug: string): string {
+  // Restore the historical spelling for display; no service area is derived from it.
+  const label = slug.replace(/^gross/, "groß").replace(/gruen$/, "grün").replace(/muehl$/, "mühl");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}

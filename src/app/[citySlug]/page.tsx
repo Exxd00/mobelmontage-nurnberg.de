@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Directory, Intro, UnlistedArea } from "@/components/service/Directory";
 import styles from "@/components/service/Directory.module.css";
 import FormCTA from "@/components/sections/FormCTA";
-import { legacyCitySlugs } from "@/lib/legacy-city-slugs";
+import { legacyCitySlugs, legacyLabel } from "@/lib/legacy-city-slugs";
 import {
   directoryCities,
   findCity,
@@ -24,14 +24,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const city = findCity(citySlug);
   if (!city) {
     if (!legacyCitySlugs.has(citySlug)) notFound();
-    return {
-      ...pageMetadata(
-        "Einsatzort prüfen | Möbelmontage Nürnberg",
-        "Verfügbarkeit anhand von Postleitzahl und Einsatzort anfragen.",
-        `/${citySlug}`,
-      ),
-      robots: { index: false, follow: true },
-    };
+    const label = legacyLabel(citySlug);
+    const metadata = pageMetadata(
+      `Lieferung oder Montage anfragen – Ortsangabe ${label}`,
+      `Anfrage zur Ortsangabe „${label}“: Mit Gemeinde und Postleitzahl prüfen wir, ob Anfahrt und Termin für Ihr Vorhaben möglich sind.`,
+      `/${citySlug}`,
+    );
+    return { ...metadata, robots: { index: false, follow: true } };
   }
   return pageMetadata(
     `Möbelmontage, Küchenmontage und Lieferung in ${city.name}`,
@@ -45,7 +44,7 @@ export default async function CityPage({ params }: Props) {
   const city = findCity(citySlug);
   if (!city) {
     if (!legacyCitySlugs.has(citySlug)) notFound();
-    return <UnlistedArea />;
+    return <UnlistedArea citySlug={citySlug} />;
   }
   const others = directoryCities
     .filter((item) => item.region === city.region && item.slug !== city.slug)

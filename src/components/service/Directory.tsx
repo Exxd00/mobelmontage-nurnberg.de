@@ -3,9 +3,11 @@ import { ProjectCover } from "@/components/sections/Gallery";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { businessInfo } from "@/lib/data";
+import { businessInfo, services } from "@/lib/data";
 import { projects } from "@/lib/projects";
-import { siteOrigin } from "@/lib/service-directory";
+import { siteOrigin, type Service } from "@/lib/service-directory";
+import { legacyLabel } from "@/lib/legacy-city-slugs";
+import { serviceBasics, serviceIntro } from "@/lib/service-guide";
 import styles from "./Directory.module.css";
 
 type Crumb = { label: string; href: string };
@@ -118,20 +120,35 @@ export function KitchenExample({
   );
 }
 
-export function UnlistedArea() {
+export function UnlistedArea({ citySlug, service }: { citySlug: string; service?: Service }) {
+  const label = legacyLabel(citySlug);
+  const placePath = `/${citySlug}`;
+  const crumbs = [{ label: "Einsatzgebiet", href: "/staedte" }, { label, href: placePath }];
+  if (service) crumbs.push({ label: service.name, href: `${placePath}/${service.slug}` });
+  const request = service ? `/?leistung=${encodeURIComponent(service.parentId)}#kontakt-form` : "/#kontakt-form";
   return (
-    <Directory crumbs={[{ label: "Einsatzgebiet", href: "/staedte" }]}>
+    <Directory crumbs={crumbs}>
       <Intro
-        title="Einsatzort prüfen"
-        description="Nennen Sie uns Ihren Ort, die Postleitzahl und die gewünschte Leistung. Wir prüfen die Anfahrt und melden uns mit den Möglichkeiten für Ihr Vorhaben."
+        title={service ? `${service.name} anfragen: ${label}` : `Einsatzort prüfen: ${label}`}
+        description={`Für die Ortsangabe „${label}“ prüfen wir die Anfahrt individuell. Bitte nennen Sie die Postleitzahl und die zugehörige Gemeinde, damit wir den Einsatzort eindeutig zuordnen können.`}
       />
+      {service ? <section className={styles.band}>
+        <h2>Was ist bei diesem Auftrag wichtig?</h2><p>{serviceIntro(service)}</p>
+        <p>{serviceBasics[service.parentId].preparation}</p>
+        <Link href={`/service/${service.slug}`}>{service.name}: Ablauf und Richtpreise →</Link>
+      </section> : <section className={styles.band}>
+        <h2>Was möchten Sie anfragen?</h2>
+        <div className={styles.tiles}>{services.map((group) => <article className={styles.tile} key={group.id}>
+          <h3><Link href={`${placePath}/${group.slug}`}>{serviceBasics[group.id].title}</Link></h3>
+          <p>{serviceBasics[group.id].intro}</p>
+        </article>)}</div>
+      </section>}
       <section className={styles.band}>
-        <h2>Kontakt für Ihre Anfrage</h2>
+        <h2>Wie geht es weiter?</h2>
+        <p>Nennen Sie auch den Wunschtermin, den Zugang zum Gebäude und, bei einer Lieferung, den Abholort. Ob und zu welchem Preis wir den Auftrag übernehmen können, erfahren Sie mit der Rückmeldung auf Ihre Anfrage.</p>
         <div className={styles.links}>
-          <Link href="/#kontakt-form">Montage oder Lieferung anfragen →</Link>
-          <a href={`tel:${businessInfo.phone.replace(/\s/g, "")}`}>
-            {businessInfo.phone}
-          </a>
+          <Link href={request}>{service ? service.name : "Montage oder Lieferung"} anfragen →</Link>
+          <a href={`tel:${businessInfo.phone.replace(/\s/g, "")}`}>{businessInfo.phone}</a>
           <Link href="/staedte">Zum Ortsverzeichnis</Link>
         </div>
       </section>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { UnlistedArea } from "@/components/service/Directory";
 import ServiceDetail from "@/components/service/ServiceDetail";
-import { legacyCitySlugs } from "@/lib/legacy-city-slugs";
+import { legacyCitySlugs, legacyLabel } from "@/lib/legacy-city-slugs";
 import {
   cityServices,
   directoryCities,
@@ -15,12 +15,9 @@ import { serviceIntro } from "@/lib/service-guide";
 type Props = { params: Promise<{ citySlug: string; serviceSlug: string }> };
 
 export function generateStaticParams() {
-  return directoryCities.flatMap((city) =>
-    cityServices(city).map((service) => ({
-      citySlug: city.slug,
-      serviceSlug: service.slug,
-    })),
-  );
+  return directoryCities.flatMap((city) => cityServices(city).map((service) => ({
+    citySlug: city.slug, serviceSlug: service.slug,
+  })));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -30,14 +27,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!service) notFound();
   if (!city) {
     if (!legacyCitySlugs.has(citySlug)) notFound();
-    return {
-      ...pageMetadata(
-        "Einsatzort prüfen | Möbelmontage Nürnberg",
-        "Postleitzahl und Vorhaben für eine individuelle Anfrage angeben.",
-        `/${citySlug}/${service.slug}`,
-      ),
-      robots: { index: false, follow: true },
-    };
+    const label = legacyLabel(citySlug);
+    const metadata = pageMetadata(
+      `${service.name} anfragen – Ortsangabe ${label}`,
+      `${service.name} zur Ortsangabe „${label}“ anfragen. Die Verfügbarkeit prüfen wir anhand von Gemeinde, Postleitzahl und Auftragsumfang.`,
+      `/${citySlug}/${service.slug}`,
+    );
+    return { ...metadata, robots: { index: false, follow: true } };
   }
   return pageMetadata(
     `${service.name} in ${city.name} | Angebot für Ihren Einsatzort`,
@@ -53,7 +49,7 @@ export default async function CityServicePage({ params }: Props) {
   const city = findCity(citySlug);
   if (!city) {
     if (!legacyCitySlugs.has(citySlug)) notFound();
-    return <UnlistedArea />;
+    return <UnlistedArea citySlug={citySlug} service={service} />;
   }
   return <ServiceDetail city={city} service={service} />;
 }
