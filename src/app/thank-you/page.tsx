@@ -85,8 +85,8 @@ function ThankYouContent() {
       </h1>
 
       <p className="text-lg md:text-xl text-muted-foreground mb-8">
-        Ihre Anfrage wurde erfolgreich gesendet. Wir werden uns innerhalb
-        von 24 Stunden bei Ihnen melden.
+        Ihre Anfrage ist bei uns eingegangen. Unser Team prüft Ihre Angaben und
+        meldet sich mit Ihrem persönlichen Angebot oder einer Rückfrage.
       </p>
 
       {reference && <p className="mb-6">Ihre Anfragenummer: <strong>{reference}</strong></p>}
