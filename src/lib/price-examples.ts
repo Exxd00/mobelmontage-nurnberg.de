@@ -1,3 +1,5 @@
+import { getAllServices } from "./data";
+
 type ServiceId = "lieferungen" | "moebelmontage" | "kuechenmontage";
 
 export const startingPrices = {
@@ -29,4 +31,20 @@ export const priceExamples: PriceExample[] = [
 
 export function getPriceExample(id: string | null) {
   return priceExamples.find((example) => example.id === id);
+}
+
+// These pages name a model family that also has a published example price.
+const taskExamples: Record<string, string> = {
+  "pax-schrank-montage": "pax-2m",
+  "ikea-kuechenmontage": "ikea-kueche-10",
+};
+
+export function priceFinderHref(serviceSlug: string, city?: string) {
+  const service = getAllServices().find(item => item.slug === serviceSlug);
+  if (!service) return "/leistungen#preisfinder";
+  const query = new URLSearchParams({ leistung: service.parentId });
+  if (service.slug !== service.parentId) query.set("aufgabe", service.slug);
+  if (city) query.set("ort", city);
+  if (taskExamples[service.slug]) query.set("beispiel", taskExamples[service.slug]);
+  return `/leistungen?${query}#preisfinder`;
 }

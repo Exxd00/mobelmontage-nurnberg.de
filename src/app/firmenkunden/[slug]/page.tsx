@@ -39,7 +39,7 @@ export default async function BusinessGuidePage({ params }: Props) {
   const { slug, guide, image, srcSet } = await getGuide(params);
   const inquiry = businessInquiries[slug];
   return (
-    <Directory crumbs={[{ label: "Für Firmen", href: "/firmenkunden" }, { label: inquiry.title, href: `/firmenkunden/${slug}` }]}>
+    <Directory offerHref={businessInquiryHref(slug)} crumbs={[{ label: "Für Firmen", href: "/firmenkunden" }, { label: inquiry.title, href: `/firmenkunden/${slug}` }]}>
       <header className={styles.guideHero}>
         <div className={styles.guideCopy}>
           <h1>{guide.title}</h1>

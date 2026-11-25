@@ -12,6 +12,7 @@ import {
 } from "@/lib/service-directory";
 import { services } from "@/lib/data";
 import { serviceBasics } from "@/lib/service-guide";
+import { inquiryHref } from "@/lib/inquiry-context";
 
 type Props = { params: Promise<{ citySlug: string }> };
 
@@ -51,6 +52,7 @@ export default async function CityPage({ params }: Props) {
     .slice(0, 8);
   return (
     <Directory
+      offerHref={inquiryHref({ city: city.slug })}
       crumbs={[
         { label: "Einsatzgebiet", href: "/staedte" },
         { label: city.name, href: `/${city.slug}` },
@@ -116,7 +118,7 @@ export default async function CityPage({ params }: Props) {
           </div>
         </div>
       </section>
-      <FormCTA cityName={city.name} />
+      <FormCTA cityName={city.name} context={{ city: city.slug }} />
       {others.length > 0 && (
         <section className={styles.band}>
           <h2>Weitere Orte in der Region</h2>

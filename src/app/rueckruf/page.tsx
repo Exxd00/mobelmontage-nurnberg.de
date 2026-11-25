@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Directory, Intro } from "@/components/service/Directory";
-import { isBusinessInquiry } from "@/lib/business-inquiries";
+import { inquiryHref, inquiryServices, readInquiryIds, resolveInquiry } from "@/lib/inquiry-context";
+import { resolveDirectoryReference } from "@/lib/inquiry-directory";
+import { projects } from "@/lib/projects";
 import CallbackForm from "./CallbackForm";
 
 export const metadata: Metadata = {
@@ -11,12 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function CallbackPage({ searchParams }: {
-  searchParams: Promise<{ betrieb?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { betrieb } = await searchParams;
-  const business = typeof betrieb === "string" && isBusinessInquiry(betrieb) ? betrieb : null;
-  return <Directory crumbs={[{ label: "Rückruf", href: "/rueckruf" }]}>
+  const ids = readInquiryIds(await searchParams);
+  const context = resolveInquiry(ids, Object.fromEntries(projects.map(project => [project.slug, project.title])), resolveDirectoryReference(ids), "callback");
+  const service = context.ids.service;
+  const note = [service && "Leistung: " + inquiryServices[service], context.reference].filter(Boolean).join("\n");
+  return <Directory crumbs={[{ label: "Rückruf", href: "/rueckruf" }]} offerHref={inquiryHref(context.ids)}>
     <Intro title="Wann erreichen wir Sie?" description="Hinterlassen Sie uns Ihre Nummer. Im Gespräch klären wir, welche Arbeiten anstehen und welche Angaben wir für Ihr Angebot brauchen."/>
-    <CallbackForm business={business}/>
+    <CallbackForm key={note} context={context.ids} note={note}/>
   </Directory>;
 }

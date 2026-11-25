@@ -12,6 +12,21 @@ import styles from "../projects.module.css";
 const origin = "https://mobelmontage-nurnberg.de";
 type Props = { params: Promise<{ slug: string }> };
 
+const serviceLabels = {
+  "kuecheninsel-montage": "Kücheninsel montieren",
+  "kuechenzeile-montage": "Küchenzeile montieren",
+  "eckküche-montage": "Eckküche montieren",
+  "arbeitsplatten-montage": "Arbeitsplatte einpassen",
+  "einbaugeraete-montage": "Einbaugeräte montieren",
+};
+
+const projectServices: Record<string, (keyof typeof serviceLabels)[]> = {
+  "weisse-messekueche": ["kuecheninsel-montage", "kuechenzeile-montage"],
+  "kueche-mit-holzinsel": ["kuecheninsel-montage", "arbeitsplatten-montage"],
+  "gruene-winkelkueche": ["eckküche-montage", "arbeitsplatten-montage"],
+  "dunkle-inselkueche": ["kuecheninsel-montage", "einbaugeraete-montage"],
+};
+
 export const dynamicParams = false;
 
 export function generateStaticParams() {
@@ -46,6 +61,7 @@ export default async function ProjectPage({ params }: Props) {
   const project = getProject((await params).slug);
   if (!project) notFound();
   const url = `${origin}/arbeiten/${project.slug}`;
+  const inquiryHref = `/?leistung=kuechenmontage&projekt=${project.slug}#kontakt-form`;
   const structuredData = {
     "@context": "https://schema.org",
     "@graph": [
@@ -66,7 +82,7 @@ export default async function ProjectPage({ params }: Props) {
   };
   return (
     <>
-      <Header />
+      <Header offerHref={inquiryHref} />
       <main id="main-content" className={styles.page}>
         <div className={styles.wrap}>
           <nav className={styles.crumb} aria-label="Brotkrumennavigation">
@@ -77,7 +93,10 @@ export default async function ProjectPage({ params }: Props) {
             <header className={styles.detailHero}>
               <div className={styles.detailText}>
                 <h1>{project.title}</h1><p>{project.summary}</p>
-                <a className={styles.jump} href="#vergleich">Vorher und nachher ansehen <span aria-hidden="true">↓</span></a>
+                <div className={styles.heroActions}>
+                  <Link className="studio-button" href={inquiryHref}>Ähnliche Küche anfragen <ArrowRight size={17} aria-hidden="true" /></Link>
+                  <a className={styles.jump} href="#vergleich">Vorher und nachher ansehen <span aria-hidden="true">↓</span></a>
+                </div>
               </div>
               <ProjectCover project={project} sizes="(max-width: 760px) 92vw, (max-width: 1250px) 56vw, 640px" priority />
             </header>
@@ -100,10 +119,19 @@ export default async function ProjectPage({ params }: Props) {
                 </section>
               )}
             </div>
+            <nav className={styles.related} aria-labelledby="passende-leistungen">
+              <h2 id="passende-leistungen">Passende Leistungen</h2>
+              <ul>
+                {(projectServices[project.slug] ?? []).map((service) => (
+                  <li key={service}><Link href={`/service/${service}`}>{serviceLabels[service]} <ArrowRight size={16} aria-hidden="true" /></Link></li>
+                ))}
+                <li><Link href="/firmenkunden/ausstellung">Ausstellungsküche für Messe und Showroom <ArrowRight size={16} aria-hidden="true" /></Link></li>
+              </ul>
+            </nav>
           </article>
           <aside className={styles.cta}>
             <div><h2>Küchenmontage anfragen</h2><p>Wir erstellen Ihnen ein Angebot anhand Ihres Plans und der gewünschten Montagearbeiten.</p></div>
-            <Link href={`/?leistung=kuechenmontage&projekt=${project.slug}#kontakt-form`}>Zum Anfrageformular <ArrowRight size={18} aria-hidden="true" /></Link>
+            <Link href={inquiryHref}>Zum Anfrageformular <ArrowRight size={18} aria-hidden="true" /></Link>
           </aside>
           <div className={styles.returnLinks}>
             <Link href="/arbeiten"><ArrowLeft size={17} aria-hidden="true" /> Alle Projekte</Link>

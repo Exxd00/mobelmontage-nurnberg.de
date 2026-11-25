@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { businessInfo, services } from "@/lib/data";
 import { projects } from "@/lib/projects";
+import { inquiryHref } from "@/lib/inquiry-context";
 import { siteOrigin, type Service } from "@/lib/service-directory";
 import { legacyLabel } from "@/lib/legacy-city-slugs";
 import { serviceBasics, serviceIntro } from "@/lib/service-guide";
@@ -26,11 +27,13 @@ export function JsonLd({ value }: { value: object }) {
 export function Directory({
   crumbs,
   children,
-}: { crumbs: Crumb[]; children: ReactNode }) {
+  offerHref,
+  header = <Header offerHref={offerHref} />,
+}: { crumbs: Crumb[]; children: ReactNode; offerHref?: string; header?: ReactNode }) {
   const trail = [{ label: "Startseite", href: "/" }, ...crumbs];
   return (
     <>
-      <Header />
+      {header}
       <main id="main-content" className={styles.page}>
         <div className={styles.inner}>
           <JsonLd
@@ -125,9 +128,9 @@ export function UnlistedArea({ citySlug, service }: { citySlug: string; service?
   const placePath = `/${citySlug}`;
   const crumbs = [{ label: "Einsatzgebiet", href: "/staedte" }, { label, href: placePath }];
   if (service) crumbs.push({ label: service.name, href: `${placePath}/${service.slug}` });
-  const request = service ? `/?leistung=${encodeURIComponent(service.parentId)}#kontakt-form` : "/#kontakt-form";
+  const context = { city: citySlug, service: service?.parentId, task: service?.slug === service?.parentId ? undefined : service?.slug };
   return (
-    <Directory crumbs={crumbs}>
+    <Directory crumbs={crumbs} offerHref={inquiryHref(context)}>
       <Intro
         title={service ? `${service.name} anfragen: ${label}` : `Einsatzort prüfen: ${label}`}
         description={`Für die Ortsangabe „${label}“ prüfen wir die Anfahrt individuell. Bitte nennen Sie die Postleitzahl und die zugehörige Gemeinde, damit wir den Einsatzort eindeutig zuordnen können.`}
@@ -147,7 +150,8 @@ export function UnlistedArea({ citySlug, service }: { citySlug: string; service?
         <h2>Wie geht es weiter?</h2>
         <p>Nennen Sie auch den Wunschtermin, den Zugang zum Gebäude und, bei einer Lieferung, den Abholort. Ob und zu welchem Preis wir den Auftrag übernehmen können, erfahren Sie mit der Rückmeldung auf Ihre Anfrage.</p>
         <div className={styles.links}>
-          <Link href={request}>{service ? service.name : "Montage oder Lieferung"} anfragen →</Link>
+          <Link href={inquiryHref(context)}>{service ? service.name : "Montage oder Lieferung"} anfragen →</Link>
+          <Link href={inquiryHref(context, "callback")}>Rückruf anfragen</Link>
           <a href={`tel:${businessInfo.phone.replace(/\s/g, "")}`}>{businessInfo.phone}</a>
           <Link href="/staedte">Zum Ortsverzeichnis</Link>
         </div>

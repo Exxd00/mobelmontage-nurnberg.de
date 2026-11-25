@@ -14,8 +14,9 @@ const links = [
   { href: "/firmenkunden", label: "Für Firmen" },
 ];
 
-export default function Header() {
+export default function Header({ offerHref }: { offerHref?: string }) {
   const pathname = usePathname();
+  const offer = offerHref ?? (pathname === "/" ? "#kontakt-form" : "/#kontakt-form");
   const [dark, setDark] = useState(false);
   const [largeType, setLargeType] = useState(false);
   const menu = useRef<HTMLDetailsElement>(null);
@@ -61,10 +62,10 @@ export default function Header() {
         <nav className="wide-links" aria-label="Hauptnavigation">{navItems}{typeButton}</nav>
         <div className="header-tools">
           <button className="theme-switch" onClick={changeTheme} aria-label={dark ? "Hellen Modus einschalten" : "Dunklen Modus einschalten"}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
-          <Link className="studio-button header-action" prefetch={false} href="/#kontakt-form">Angebot anfragen <ArrowUpRight size={16}/></Link>
+          <Link className="studio-button header-action" prefetch={false} href={offer}>Angebot anfragen <ArrowUpRight size={16}/></Link>
           <details ref={menu} className="mobile-menu" onKeyDown={e => { if (e.key === "Escape") { closeMenu(); menu.current?.querySelector("summary")?.focus(); } }}>
             <summary aria-label="Navigation"><Menu className="menu-closed"/><X className="menu-open"/></summary>
-            <nav aria-label="Mobile Hauptnavigation">{navItems}{typeButton}<Link prefetch={false} href="/#kontakt-form" onClick={closeMenu}>Angebot anfragen</Link></nav>
+            <nav aria-label="Mobile Hauptnavigation">{navItems}{typeButton}<Link prefetch={false} href={offer} onClick={closeMenu}>Angebot anfragen</Link></nav>
           </details>
         </div>
       </div>

@@ -27,6 +27,13 @@ const questions = [
   ["Wo kann ich abgeschlossene Montagen sehen?", "Im Projektbereich finden Sie vier Messeküchen. Jedes Projekt zeigt den Montagezustand und das Ergebnis mit einer Beschreibung der sichtbaren Arbeitsschritte."],
 ];
 
+const frequentJobs = [
+  ["PAX-Schrank aufbauen", "pax-schrank-montage"],
+  ["Arbeitsplatte montieren", "arbeitsplatten-montage"],
+  ["Bett aufbauen", "bett-montage"],
+  ["Sofa liefern", "sofa-lieferung"],
+];
+
 const featured = ["gruene-winkelkueche", "kueche-mit-holzinsel"].map(slug => projects.find(project => project.slug === slug)!);
 
 export default function HomePage() {
@@ -57,6 +64,9 @@ export default function HomePage() {
           <span className="service-item-top"><Icon size={26} strokeWidth={1.55}/><span>{price}</span></span>
           <h3>{label} <ArrowUpRight size={18}/></h3><p>{detail}</p>
         </Link>)}</div>
+      <nav className="frequent-jobs" aria-label="Häufige Aufträge">
+        {frequentJobs.map(([label, slug]) => <Link key={slug} href={`/service/${slug}`}>{label}<ArrowRight size={15} aria-hidden="true"/></Link>)}
+      </nav>
     </div></section>
     <section className="studio-shell home-projects">
       <div className="section-heading"><div><h2>Unsere Küchenprojekte</h2><p>Vier Messeküchen, vom offenen Korpus bis zur fertigen Front.</p></div>
