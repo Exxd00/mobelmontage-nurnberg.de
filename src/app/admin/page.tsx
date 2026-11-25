@@ -1,119 +1,8 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Lock, Unlock, Image, FileText, BarChart3, Settings, ExternalLink } from "lucide-react";
-
-const ADMIN_PASSWORD = "Leavemealone2003+";
+import { Image, FileText, BarChart3, Settings, ExternalLink } from "lucide-react";
 
 export default function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check if already authenticated (session)
-  useEffect(() => {
-    const authStatus = sessionStorage.getItem("admin_authenticated");
-    if (authStatus === "true") {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem("admin_authenticated", "true");
-    } else {
-      setError("Falsches Passwort");
-      setPassword("");
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem("admin_authenticated");
-    setPassword("");
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Login form
-  if (!isAuthenticated) {
-    return (
-      <>
-        <head>
-          <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
-          <meta name="googlebot" content="noindex, nofollow" />
-          <title>Admin - Login</title>
-        </head>
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-center mb-6">
-              <div className="w-16 h-16 bg-orange-600 rounded-full flex items-center justify-center">
-                <Lock className="w-8 h-8 text-white" />
-              </div>
-            </div>
-
-            <h1 className="text-2xl font-bold text-white text-center mb-2">
-              Admin Bereich
-            </h1>
-            <p className="text-gray-400 text-center mb-6">
-              Bitte geben Sie das Passwort ein
-            </p>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Passwort eingeben..."
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-
-              {error && (
-                <p className="text-red-400 text-sm text-center">{error}</p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                <Unlock className="w-5 h-5" />
-                Anmelden
-              </button>
-            </form>
-
-            <p className="text-gray-500 text-xs text-center mt-6">
-              Diese Seite ist nicht indiziert
-            </p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Admin dashboard
   return (
-    <>
-      <head>
-        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
-        <meta name="googlebot" content="noindex, nofollow" />
-        <title>Admin Dashboard</title>
-      </head>
       <div className="min-h-screen bg-gray-900 text-white">
         {/* Header */}
         <header className="bg-gray-800 border-b border-gray-700">
@@ -127,12 +16,7 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-400">Möbelmontage Nürnberg</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
-            >
-              Abmelden
-            </button>
+            <Link href="/" className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">Zur Website</Link>
           </div>
         </header>
 
@@ -268,6 +152,5 @@ export default function AdminPage() {
           </div>
         </footer>
       </div>
-    </>
   );
 }

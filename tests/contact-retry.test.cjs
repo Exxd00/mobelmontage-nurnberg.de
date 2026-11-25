@@ -36,7 +36,7 @@ function sheetHarness() {
     Utilities: { formatDate: () => "25.11.2026 12:00" },
     ContentService: { MimeType: {JSON: "json"}, createTextOutput: value => ({setMimeType: () => value}) },
   });
-  vm.runInContext(readFileSync(path.join(root, "public/google-sheets-script/script.gs"), "utf8"), sandbox);
+  vm.runInContext(readFileSync(path.join(root, "operator-files/google-sheets-script/script.gs"), "utf8"), sandbox);
   sandbox.formatRow = () => {};
   sandbox.addDropdowns = () => {};
   return { rows, write: contents => JSON.parse(sandbox.doPost({postData:{contents}})) };
