@@ -7,6 +7,7 @@ import {
   cityServices,
   directoryCities,
   findCity,
+  localServiceGuide,
   pageMetadata,
   findService,
 } from "@/lib/service-directory";
@@ -35,9 +36,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     );
     return { ...metadata, robots: { index: false, follow: true } };
   }
+  const guide = localServiceGuide(city, service);
   return pageMetadata(
-    `${service.name} in ${city.name} | Angebot für Ihren Einsatzort`,
-    `${service.name} in ${city.name}. ${serviceIntro(service)}`,
+    guide?.title ?? `${service.name} in ${city.name} | Angebot für Ihren Einsatzort`,
+    guide?.description ?? `${service.name} in ${city.name}. ${serviceIntro(service)}`,
     `/${city.slug}/${service.slug}`,
   );
 }

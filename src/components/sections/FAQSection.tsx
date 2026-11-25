@@ -1,12 +1,14 @@
 "use client";
 
+import { startingPrices } from "@/lib/price-examples";
+
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
     question: "Was kostet die Montage wirklich?",
-    answer: "Unsere Preise starten ab 59€. Sie erhalten immer ein verbindliches Festpreis-Angebot ohne versteckte Zusatzkosten.",
+    answer: "Die Möbelmontage beginnt bei " + startingPrices.moebelmontage + ". Ihren Preis erhalten Sie nach Prüfung der Angaben.",
   },
   {
     question: "Wie schnell bekomme ich einen Termin?",

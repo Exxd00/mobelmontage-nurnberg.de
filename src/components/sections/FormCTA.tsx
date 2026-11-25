@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { businessInfo } from "@/lib/data";
 import { inquiryHref, type InquiryIds } from "@/lib/inquiry-context";
+import { contactLinks } from "@/lib/contact-links";
 import styles from "@/components/service/Directory.module.css";
 
 interface FormCTAProps {
@@ -23,6 +24,7 @@ export default function FormCTA({
   const subject = [serviceName ?? "Angebot", cityName && `in ${cityName}`]
     .filter(Boolean)
     .join(" ");
+  const contact = contactLinks(context, { task: serviceName, city: cityName });
   return (
     <section id={compact ? undefined : "anfrage"} className={styles.cta}>
       <h2>{title ?? `${subject} anfragen`}</h2>
@@ -38,7 +40,7 @@ export default function FormCTA({
         <a href={`tel:${businessInfo.phone.replace(/\s/g, "")}`}>
           {businessInfo.phone}
         </a>
-        <a href={`https://wa.me/${businessInfo.whatsapp.replace(/\D/g, "")}`}>
+        <a href={contact.whatsapp} data-page-whatsapp={contact.whatsapp}>
           WhatsApp
         </a>
       </div>

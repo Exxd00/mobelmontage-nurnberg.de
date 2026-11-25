@@ -6,10 +6,13 @@ import type { InquiryIds } from "@/lib/inquiry-context";
 import { businessInfo } from "@/lib/data";
 import { trackEvent, trackLead } from "@/lib/analytics";
 import { getTrackingData } from "@/lib/tracking";
+import { isContactPhone } from "@/lib/quote-requirements";
+import { newInquiryAttempt } from "@/lib/inquiry-attempt";
 import styles from "./callback.module.css";
 
 export default function CallbackForm({ context, note }: { context: InquiryIds; note: string }) {
   const sending = useRef(false);
+  const attempt = useRef<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -20,9 +23,17 @@ export default function CallbackForm({ context, note }: { context: InquiryIds; n
     const form = event.currentTarget;
     const data = new FormData(form);
     const phone = String(data.get("phone") ?? "").trim();
-    if (phone.replace(/\D/g, "").length < 5) { setError("Geben Sie eine erreichbare Telefonnummer mit Vorwahl an."); return; }
+    if (!isContactPhone(phone)) {
+      setError("Geben Sie eine erreichbare Telefonnummer mit Vorwahl an.");
+      form.querySelector<HTMLInputElement>('[name="phone"]')?.focus();
+      return;
+    }
     const name = String(data.get("name") ?? "").trim();
-    if (!name) { setError("Bitte geben Sie Ihren Namen an."); return; }
+    if (!name) {
+      setError("Bitte geben Sie Ihren Namen an.");
+      form.querySelector<HTMLInputElement>('[name="name"]')?.focus();
+      return;
+    }
     sending.current = true;
     setBusy(true);
     setError("");
@@ -31,6 +42,7 @@ export default function CallbackForm({ context, note }: { context: InquiryIds; n
       const response = await fetch("/api/contact", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          attempt: attempt.current ??= newInquiryAttempt(),
           service: "rueckruf", name, phone, serviceDetails: { company: String(data.get("company") ?? "").trim(), timeSlot: String(data.get("timeSlot") ?? "").trim() },
           message: String(data.get("note") ?? "").trim(),
           quelle: tracking.source, gclid: tracking.gclid, seite: "/rueckruf",
@@ -55,7 +67,15 @@ export default function CallbackForm({ context, note }: { context: InquiryIds; n
     <p>Wir melden uns unter der angegebenen Telefonnummer.</p>
     <Link href="/">Zur Startseite →</Link>
   </section>;
-  return <form className={styles.form} method="post" onSubmit={submit}>
+  return <>
+  <noscript>
+    <style>{`[data-callback-form]{display:none!important}`}</style>
+    <div className={styles.form}><p>Für einen Rückruf nennen Sie uns bitte per E-Mail Ihren Namen, Ihre Telefonnummer und eine passende Zeit.</p>
+      <a href={`mailto:${businessInfo.email}`}>{businessInfo.email}</a>
+      <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}>{businessInfo.phone}</a>
+    </div>
+  </noscript>
+  <form data-callback-form className={styles.form} method="post" onSubmit={submit}>
     <label>Ihr Name<input name="name" autoComplete="name" required maxLength={120}/></label>
     <label>Telefonnummer<input name="phone" type="tel" autoComplete="tel" required maxLength={45}/></label>
     {context.business && <label>Firma (optional)<input name="company" autoComplete="organization" maxLength={180}/></label>}
@@ -64,6 +84,5 @@ export default function CallbackForm({ context, note }: { context: InquiryIds; n
     <p>Wie wir Ihre Angaben verwenden, erfahren Sie im <Link href="/datenschutz">Datenschutz</Link>.</p>
     {error && <p role="alert">{error} <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}>{businessInfo.phone}</a></p>}
     <button disabled={busy} type="submit">{busy ? "Wird übermittelt …" : "Rückruf anfragen"}</button>
-    <noscript>Telefonisch erreichen Sie uns unter <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}>{businessInfo.phone}</a>.</noscript>
-  </form>;
+  </form></>;
 }

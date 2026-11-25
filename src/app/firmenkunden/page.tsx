@@ -2,13 +2,14 @@ import Link from "next/link";
 import { ArrowDown, ArrowRight, Armchair, CookingPot, PanelsTopLeft, Truck } from "lucide-react";
 import { Directory } from "@/components/service/Directory";
 import { businessInquiries, type BusinessInquiry } from "@/lib/business-inquiries";
-import { pageMetadata } from "@/lib/service-directory";
+import { pageMetadata, projectShareImage } from "@/lib/page-metadata";
 import styles from "./business.module.css";
 
 export const metadata = pageMetadata(
   "Möbelmontage für Firmen in Nürnberg | Büro, Teeküche & Ausstellung",
   "Büromöbel aufbauen, eine Teeküche montieren oder Möbel anliefern lassen. Beschreiben Sie Stückzahl, Einsatzort und Zeitfenster für Ihr Firmenangebot.",
   "/firmenkunden",
+  projectShareImage("/projekte/kueche-mit-holzinsel/hero-1080.webp", "Fertige Messeküche mit Holzinsel und offenen Fächern"),
 );
 
 const jobs = [

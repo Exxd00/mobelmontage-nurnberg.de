@@ -104,7 +104,7 @@ export default function AdsImportPage() {
               استيراد حملات Google Ads
             </h1>
             <p className="text-xl text-gray-600" dir="rtl">
-              ملفات CSV جاهزة للاستيراد في Google Ads Editor
+              ملفات CSV لتحضير الحملة في Google Ads Editor. إعدادات الحملات المصدّرة متوقفة حتى تختار إطلاقها.
               <br />
               <span className="text-orange-600 font-medium">4 حملات و35 كلمة مفتاحية و9 إعلانات بحث وإعلان عرض واحد</span>
             </p>
@@ -119,8 +119,8 @@ export default function AdsImportPage() {
                 <ul className="text-amber-900 space-y-1 text-sm">
                   <li>• تأكد أن لديك حساب Google Ads نشط</li>
                   <li>• أضف معلومات الدفع (بطاقة ائتمان) قبل النشر</li>
-                  <li>• راجع الروابط في الملفات وغيّرها لموقعك الفعلي</li>
-                  <li>• غيّر رقم الهاتف للرقم الصحيح</li>
+                  <li>• راجع صفحات الهبوط والميزانية ونطاق الخدمة قبل التفعيل</li>
+                  <li>• اختر الطلب المستلم generate_lead هدفًا أساسيًا واحدًا وتحقّق من معاينة الاستيراد</li>
                 </ul>
               </div>
             </div>

@@ -1,14 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import { Directory, Intro } from "@/components/service/Directory";
 import { inquiryHref, inquiryServices, readInquiryIds, resolveInquiry } from "@/lib/inquiry-context";
 import { resolveDirectoryReference } from "@/lib/inquiry-directory";
 import { projects } from "@/lib/projects";
 import CallbackForm from "./CallbackForm";
 
-export const metadata: Metadata = {
-  title: "Rückruf anfragen",
-  description: "Name, Rückrufnummer und auf Wunsch eine passende Zeit angeben.",
-  alternates: { canonical: "/rueckruf" },
+export const metadata = {
+  ...pageMetadata("Rückruf anfragen | Möbelmontage Nürnberg", "Name, Rückrufnummer und auf Wunsch eine passende Zeit angeben.", "/rueckruf"),
   robots: { index: false, follow: true },
 };
 

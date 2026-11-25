@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata, siteOrigin } from "@/lib/page-metadata";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -9,15 +9,9 @@ import styles from "./projects.module.css";
 
 const title = "Küchenmontage im Vorher-Nachher-Vergleich";
 const description = "Vier Messeküchen vor und nach der Montage. Fotos von Kücheninseln, Auszügen, Arbeitsplatten und fertigen Fronten zeigen den Aufbau im Detail.";
-const url = "https://mobelmontage-nurnberg.de/arbeiten";
+const url = siteOrigin + "/arbeiten";
 
-export const metadata: Metadata = {
-  title,
-  description,
-  alternates: { canonical: url },
-  openGraph: { title, description, url, images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: projects[0].cover.alt }] },
-  twitter: { card: "summary_large_image", title, description, images: ["/og-image.jpg"] },
-};
+export const metadata = pageMetadata(`${title} | Möbelmontage Nürnberg`, description, "/arbeiten");
 
 export default function ArbeitenPage() {
   const gallery = {

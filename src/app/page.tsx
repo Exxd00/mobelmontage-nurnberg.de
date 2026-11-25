@@ -1,27 +1,29 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Link from "next/link";
 import { Armchair, ArrowRight, ArrowUpRight, Building2, CookingPot, MapPin, MessageCircle, Phone, PhoneIncoming, Plus, Truck } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import InquiryPanel from "@/components/sections/InquiryPanel";
+import { startingPrices, singleItemPrices } from "@/lib/price-examples";
 import { projects } from "@/lib/projects";
 import { businessInfo } from "@/lib/data";
+import { contactLinks } from "@/lib/contact-links";
 
-export const metadata: Metadata = {
-  title: { absolute: "Möbelmontage Nürnberg | Küchenmontage, Möbelaufbau & Lieferung" },
-  description: "Möbelaufbau ab 59 €, Küchenmontage ab 149 € und Möbellieferung ab 39 € in Nürnberg und Umgebung. Vier Messeküchen im Vorher-Nachher-Vergleich. Angebot anfragen.",
-  alternates: { canonical: "/" },
-};
+export const metadata = pageMetadata(
+  "Möbelmontage Nürnberg | Küchenmontage, Möbelaufbau & Lieferung",
+  `Möbelaufbau ab ${startingPrices.moebelmontage}, Küchenmontage ab ${startingPrices.kuechenmontage} und Möbellieferung ab ${startingPrices.lieferungen} in Nürnberg und Umgebung. Vier Messeküchen im Vorher-Nachher-Vergleich. Angebot anfragen.`,
+  "/",
+);
 
 const services = [
-  { href: "/service/kuechenmontage", label: "Küche montieren", price: "ab 149 €", detail: "Von der Schrankzeile bis zur Insel mit eingepasster Arbeitsplatte.", icon: CookingPot },
-  { href: "/service/moebelmontage", label: "Möbel aufbauen", price: "ab 59 €", detail: "Schränke, Betten und Regale nach Anleitung aufbauen lassen.", icon: Armchair },
-  { href: "/service/lieferungen", label: "Möbel liefern", price: "ab 39 €", detail: "Möbel abholen und bis zum vereinbarten Stellplatz bringen lassen.", icon: Truck },
+  { href: "/service/kuechenmontage", label: "Küche montieren", price: "ab " + startingPrices.kuechenmontage, detail: "Von der Schrankzeile bis zur Insel mit eingepasster Arbeitsplatte.", icon: CookingPot },
+  { href: "/service/moebelmontage", label: "Möbel aufbauen", price: "ab " + startingPrices.moebelmontage, detail: "Schränke, Betten und Regale nach Anleitung aufbauen lassen.", icon: Armchair },
+  { href: "/service/lieferungen", label: "Möbel liefern", price: "ab " + startingPrices.lieferungen, detail: "Möbel abholen und bis zum vereinbarten Stellplatz bringen lassen.", icon: Truck },
   { href: "/firmenkunden", label: "Für Firmen", price: "Nach Aufwand", detail: "Aufbau im Büro, Lieferung zum Betrieb oder Montage einer Ausstellungsküche.", icon: Building2 },
 ];
 
 const questions = [
-  ["Was kostet die Möbelmontage in Nürnberg?", "Die Möbelmontage beginnt bei 59 €, die Küchenmontage bei 149 € und die Möbellieferung bei 39 €. Der konkrete Preis hängt von Umfang, Anfahrt und Zugang ab. Mit Ihrer Anfrage erhalten Sie ein Angebot für Ihr Vorhaben."],
+  ["Was kostet die Möbelmontage in Nürnberg?", `In Nürnberg montieren wir ein einzelnes KALLAX-Regal ab ${singleItemPrices.kallax} und eine einzelne HEMNES-Kommode ab ${singleItemPrices.hemnes}. Für den konkreten Preis zählen Modell, Ausstattung, Zugang und Einsatzort. Küchenmontage beginnt bei ${startingPrices.kuechenmontage}, Möbellieferung bei ${startingPrices.lieferungen}.`],
   ["Welche Angaben braucht das Montageteam?", "Für den Möbelaufbau helfen Modell, Stückzahl und Ausführung oder ein aussagekräftiges Foto bzw. ein Plan. Bei Küchen fragen wir nach Form, Schrankzahl, Anschlüssen und Arbeitsplatte. Für eine Lieferung brauchen wir die Packstücke, beide Adressen und die Tragewege. Ergänzen Sie den gewünschten Zeitraum, damit wir Aufwand und Termin gemeinsam prüfen können."],
   ["Kann ich eine IKEA-Küche montieren lassen?", "Ja. Geben Sie das Küchensystem und den Plan an, etwa bei einer IKEA METOD Küche. Schreiben Sie dazu, welche Schränke, Geräte und Arbeitsplatten vorhanden sind und welche Arbeiten Sie benötigen."],
   ["Wo kann ich abgeschlossene Montagen sehen?", "Im Projektbereich finden Sie vier Messeküchen. Jedes Projekt zeigt den Montagezustand und das Ergebnis mit einer Beschreibung der sichtbaren Arbeitsschritte."],
@@ -46,7 +48,7 @@ export default function HomePage() {
         <div className="opening-links"><a className="studio-button" href="#leistungen">Vorhaben wählen <ArrowRight size={18}/></a><Link className="studio-link" href="/leistungen#preisfinder">Preis einschätzen <ArrowUpRight size={17}/></Link></div>
         <div className="opening-contacts" role="group" aria-label="Kontaktwege">
           <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}><Phone size={16} aria-hidden="true"/>Anrufen</a>
-          <a href={"https://wa.me/" + businessInfo.whatsapp.replace(/\D/g, "")}><MessageCircle size={16} aria-hidden="true"/>WhatsApp</a>
+          <a href={contactLinks().whatsapp} data-page-whatsapp={contactLinks().whatsapp}><MessageCircle size={16} aria-hidden="true"/>WhatsApp</a>
           <Link href="/rueckruf"><PhoneIncoming size={16} aria-hidden="true"/>Rückruf</Link>
         </div>
       </div>

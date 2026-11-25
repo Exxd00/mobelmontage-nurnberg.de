@@ -1,5 +1,5 @@
 import type { Service } from "./service-directory";
-import { startingPrices } from "./price-examples";
+import { startingPrices, singleItemPrices } from "./price-examples";
 
 export const serviceBasics: Record<
   string,
@@ -149,7 +149,7 @@ export const mainServiceGuides: Record<string, MainServiceGuide> = {
     businessLink: "Anlieferungen an Betriebsstandorte anfragen",
   },
   moebelmontage: {
-    price: "Die Möbelmontage beginnt bei 59 €. Der Aufwand hängt von den einzelnen Möbeln ab. Ein Bettgestell mit vier Seitenteilen lässt sich anders kalkulieren als ein Schrank derselben Breite mit Schiebetüren, Schubladen und Innenbeleuchtung. Geben Sie pro Möbel die Modellbezeichnung, die gewünschte Ausstattung und die Stückzahl an. Sie erhalten den Preis für den vereinbarten Umfang vor der Beauftragung.",
+    price: `Für die Montage eines einzelnen KALLAX-Regals in Nürnberg beginnen die Preise bei ${singleItemPrices.kallax}, für eine einzelne HEMNES-Kommode bei ${singleItemPrices.hemnes}. Der Aufwand hängt von den einzelnen Möbeln ab. Ein Bettgestell mit vier Seitenteilen lässt sich anders kalkulieren als ein Schrank derselben Breite mit Schiebetüren, Schubladen und Innenbeleuchtung. Geben Sie pro Möbel die Modellbezeichnung, die gewünschte Ausstattung und die Stückzahl an. Sie erhalten den Preis für den vereinbarten Umfang vor der Beauftragung.`,
     preparation: "Ein Produktlink, die Artikelnummer oder ein Foto der Anleitung genügt meist zur ersten Zuordnung. Ergänzen Sie Breite, Höhe und Tiefe des Möbels sowie die verfügbare Raumhöhe. Bei einem bereits genutzten Möbel helfen Bilder der zerlegten Teile, Beschläge und Rückwände. Vermerken Sie fehlende Schrauben, ausgerissene Verbinder oder Teile, die miteinander verbunden bleiben sollen.",
     planning: {
       title: "Den Stellplatz ausmessen",

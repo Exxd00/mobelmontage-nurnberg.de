@@ -2,40 +2,63 @@
 // Spalten: Datum, Status, Event-Typ, Name, E-Mail, PLZ, Service, Prioritaet, Quelle, GCLID, Bewertung
 
 function doPost(e) {
+  var lock = LockService.getScriptLock();
   try {
     var data = JSON.parse(e.postData.contents);
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    lock.waitLock(10000);
+    var sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+    var sheet = sheets.find(function(tab) { return tab.getSheetId() === 0; }) || sheets[0];
     
     if (sheet.getLastRow() === 0) {
       setupHeaders(sheet);
     }
     
-    var newRow = sheet.getLastRow() + 1;
-    var now = new Date();
-    var dateStr = Utilities.formatDate(now, 'Europe/Berlin', 'dd.MM.yyyy HH:mm');
-    
-    sheet.getRange(newRow, 1).setValue(dateStr);
-    sheet.getRange(newRow, 2).setValue('Neu');
-    sheet.getRange(newRow, 3).setValue(data.eventType || 'form');
-    sheet.getRange(newRow, 4).setValue(data.name || '-');
-    sheet.getRange(newRow, 5).setValue(data.email || '-');
-    sheet.getRange(newRow, 6).setValue(data.plz || '-');
-    sheet.getRange(newRow, 7).setValue(data.service || '-');
-    sheet.getRange(newRow, 8).setValue(data.priority || 'Normal');
-    sheet.getRange(newRow, 9).setValue(data.quelle || 'Direct');
-    sheet.getRange(newRow, 10).setValue(data.gclid || '-');
-    sheet.getRange(newRow, 11).setValue('-');
-    
-    formatRow(sheet, newRow, data.eventType || 'form', data.priority || 'Normal');
+    var eventType = data.eventType || 'form';
+    var reference = eventType === 'form' && /^MN-[0-9A-F]{12}$/.test(data.reference) ? data.reference : '';
+    var rowCount = sheet.getLastRow();
+    var values = [
+      Utilities.formatDate(new Date(), 'Europe/Berlin', 'dd.MM.yyyy HH:mm'), 'Neu', eventType,
+      data.name || '-', data.email || '-', data.plz || '-', data.service || '-',
+      data.priority || 'Normal', data.quelle || 'Direct', data.gclid || '-', '-'
+    ];
+    if (reference) {
+      var column = referenceColumn(sheet);
+      if (rowCount > 1 && sheet.getRange(2, column, rowCount - 1, 1)
+          .createTextFinder(reference).matchEntireCell(true).findNext()) {
+        return jsonReply({success: true, reference: reference, duplicate: true});
+      }
+      while (values.length < column - 1) values.push('');
+      values.push(reference);
+    }
+    var newRow = rowCount + 1;
+    if (newRow > sheet.getMaxRows()) sheet.insertRowAfter(rowCount);
+    sheet.getRange(newRow, 1, 1, values.length).setValues([values.map(function(value) {
+      return typeof value === 'string' && value.charAt(0) === '=' ? "'" + value : value;
+    })]);
+    formatRow(sheet, newRow, eventType, data.priority || 'Normal');
     addDropdowns(sheet, newRow);
-    
-    return ContentService.createTextOutput(JSON.stringify({success: true}))
-      .setMimeType(ContentService.MimeType.JSON);
-      
+    SpreadsheetApp.flush();
+    return jsonReply({success: true, reference: reference});
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({error: error.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonReply({error: error.toString()});
+  } finally {
+    if (lock.hasLock()) lock.releaseLock();
   }
+}
+
+function jsonReply(value) {
+  return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function referenceColumn(sheet) {
+  var last = Math.max(11, sheet.getLastColumn());
+  var headers = sheet.getRange(1, 1, 1, last).getDisplayValues()[0];
+  var index = headers.slice(11).indexOf('Anfragenummer');
+  if (index !== -1) return 12 + index;
+  var column = last + 1;
+  if (column > sheet.getMaxColumns()) sheet.insertColumnAfter(last);
+  sheet.getRange(1, column).setValue('Anfragenummer');
+  return column;
 }
 
 function setupHeaders(sheet) {

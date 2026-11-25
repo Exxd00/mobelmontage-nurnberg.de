@@ -6,6 +6,7 @@ import styles from "@/components/service/Directory.module.css";
 import FormCTA from "@/components/sections/FormCTA";
 import { legacyCitySlugs, legacyLabel } from "@/lib/legacy-city-slugs";
 import {
+  cityServices,
   directoryCities,
   findCity,
   pageMetadata,
@@ -50,6 +51,7 @@ export default async function CityPage({ params }: Props) {
   const others = directoryCities
     .filter((item) => item.region === city.region && item.slug !== city.slug)
     .slice(0, 8);
+  const listedServices = cityServices(city);
   return (
     <Directory
       offerHref={inquiryHref({ city: city.slug })}
@@ -67,6 +69,7 @@ export default async function CityPage({ params }: Props) {
         <div className={styles.tiles}>
           {services.map((group) => {
             const basics = serviceBasics[group.id];
+            const details = listedServices.filter(item => item.parentId === group.id && item.slug !== group.slug);
             return (
               <article key={group.id} className={styles.tile}>
                 <h3>
@@ -76,9 +79,9 @@ export default async function CityPage({ params }: Props) {
                 </h3>
                 <p className={styles.tilePrice}>ab {basics.price}</p>
                 <p>{basics.intro}</p>
-                {city.isMain && (
+                {details.length > 0 && (
                   <div className={styles.links}>
-                    {group.subServices.map((item) => (
+                    {details.map((item) => (
                       <Link
                         prefetch={false}
                         key={item.slug}

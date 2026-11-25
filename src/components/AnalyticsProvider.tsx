@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { consentChanged, consentKey, hasAnalyticsConsent } from "@/lib/consent";
+import { consentChanged, consentKey, getCookieChoice, hasAnalyticsConsent, isPublicAnalyticsPage } from "@/lib/consent";
 import { clearAttribution, initTracking } from "@/lib/tracking";
 import { initScrollTracking, initTimeTracking, trackCityView, trackServiceView, trackEvent } from "@/lib/analytics";
 
@@ -13,6 +13,8 @@ let tagStarted = false;
 function applyConsent(enabled: boolean) {
   Reflect.set(window, "ga-disable-" + measurementId, !enabled);
   if (!enabled) {
+    // An operator page pauses measurement without revoking a public-site choice.
+    if (getCookieChoice() === "accepted") return;
     clearAttribution();
     for (const entry of document.cookie.split(";")) {
       const name = entry.split("=")[0].trim();
@@ -45,6 +47,7 @@ function applyConsent(enabled: boolean) {
 
 export default function AnalyticsProvider({ children }: { children?: React.ReactNode }) {
   const pathname = usePathname();
+  const customerPage = isPublicAnalyticsPage(pathname);
   const [enabled, setEnabled] = useState(false);
   const previousPath = useRef("");
   useEffect(() => {
@@ -63,10 +66,10 @@ export default function AnalyticsProvider({ children }: { children?: React.React
       window.removeEventListener(consentChanged, sync);
       window.removeEventListener("storage", syncFromOtherTab);
     };
-  }, []);
+  }, [customerPage]);
 
   useEffect(() => {
-    if (!enabled) { previousPath.current = ""; return; }
+    if (!enabled || !customerPage) { previousPath.current = ""; return; }
     if (previousPath.current !== pathname) {
       initTracking();
       if (pathname.startsWith("/service/")) trackServiceView(pathname.slice("/service/".length));
@@ -89,7 +92,7 @@ export default function AnalyticsProvider({ children }: { children?: React.React
       stopTimer?.();
       document.removeEventListener("click", contactLinkClick, true);
     };
-  }, [enabled, pathname]);
+  }, [enabled, pathname, customerPage]);
 
   return <>{children}</>;
 }

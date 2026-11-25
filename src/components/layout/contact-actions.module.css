@@ -6,3 +6,21 @@
 .actions a, .actions button { display: inline-flex; align-items: center; min-height: 44px; border-radius: 9px; padding: .6rem 1rem; font-weight: 650; }
 .actions a { background: #e8412c; color: #0e130e; text-decoration: none; }
 .actions button { border: 1px solid var(--studio-line); }
+.draft { margin:0 0 1rem; padding:.75rem; border-left:3px solid var(--studio-sage); background:var(--studio-soft); overflow-wrap:anywhere; }
+.callback { display:inline-flex; align-items:center; min-height:44px; margin-top:.35rem; color:var(--studio-green); text-decoration:underline; }
+.dock { position:fixed; z-index:35; right:max(1rem,env(safe-area-inset-right)); bottom:calc(1rem + env(safe-area-inset-bottom)); display:grid; gap:.45rem; width:max-content; }
+.dock a { display:flex; align-items:center; justify-content:center; gap:.45rem; min-height:46px; padding:.42rem .8rem; border-radius:2rem; font:650 .88rem/1.2 var(--studio-body); text-decoration:none; color:var(--studio-ink); background:var(--studio-paper); border:1px solid var(--studio-secondary-border); box-shadow:inset 0 1px 0 #ffffff80,0 2px 8px #202a2220; }
+.dock a:last-child { background:var(--studio-soft); }
+.dock a:focus-visible { outline:3px solid var(--studio-focus); outline-offset:3px; }
+.dock[data-covered], :global(body:has(dialog[open],.mobile-menu[open],form :focus)) .dock { visibility:hidden; }
+@media(max-width:780px) {
+  .dock { right:max(.65rem,env(safe-area-inset-right)); }
+  .dock a { width:48px; height:48px; padding:0; }
+  .dock span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  :global(body:has([data-cookie-prompt])) .dock { bottom:calc(5.3rem + env(safe-area-inset-bottom)); }
+}
+@media(max-height:380px) { .dock { display:none; } }
+@media (scripting:none) {
+  .dock { position:static; display:flex; justify-content:center; width:auto; padding:.65rem; }
+}
+@media print { .dock { display:none; } }

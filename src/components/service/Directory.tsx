@@ -5,7 +5,9 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { businessInfo, services } from "@/lib/data";
 import { projects } from "@/lib/projects";
-import { inquiryHref } from "@/lib/inquiry-context";
+import { inquiryHref, readInquiryIds, resolveInquiry } from "@/lib/inquiry-context";
+import { resolveDirectoryReference } from "@/lib/inquiry-directory";
+import { contactLinks } from "@/lib/contact-links";
 import { siteOrigin, type Service } from "@/lib/service-directory";
 import { legacyLabel } from "@/lib/legacy-city-slugs";
 import { serviceBasics, serviceIntro } from "@/lib/service-guide";
@@ -31,6 +33,12 @@ export function Directory({
   header = <Header offerHref={offerHref} />,
 }: { crumbs: Crumb[]; children: ReactNode; offerHref?: string; header?: ReactNode }) {
   const trail = [{ label: "Startseite", href: "/" }, ...crumbs];
+  const source = readInquiryIds(new URL(offerHref || "/", siteOrigin).searchParams);
+  const directory = resolveDirectoryReference(source);
+  const projectTitles = Object.fromEntries(projects.map(project => [project.slug, project.shortTitle]));
+  const { ids } = resolveInquiry(source, projectTitles, directory);
+  const contact = contactLinks(ids, { task: ids.task ? directory.task?.name : undefined,
+    city: directory.city?.unconfirmed ? undefined : directory.city?.name, project: ids.project ? projectTitles[ids.project] : undefined });
   return (
     <>
       {header}
@@ -64,7 +72,7 @@ export function Directory({
           {children}
         </div>
       </main>
-      <Footer />
+      <Footer contact={contact}/>
     </>
   );
 }

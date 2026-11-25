@@ -1,13 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import FormCTA from "@/components/sections/FormCTA";
-import { businessInfo } from "@/lib/data";
 import { projects } from "@/lib/projects";
 import { inquiryHref } from "@/lib/inquiry-context";
 import { priceFinderHref } from "@/lib/price-examples";
 import {
   cityServices,
-  mainCities,
+  localServiceGuide,
+  serviceLocations,
   serviceList,
   siteOrigin,
   type City,
@@ -22,7 +22,8 @@ export default function ServiceDetail({
   city,
 }: { service: Service; city?: City }) {
   const basics = serviceBasics[service.parentId];
-  const intro = serviceIntro(service);
+  const localGuide = city && localServiceGuide(city, service);
+  const intro = localGuide?.description ?? serviceIntro(service);
   const place = city ? city.name : "Nürnberg und Umgebung";
   const path = city
     ? `/${city.slug}/${service.slug}`
@@ -53,24 +54,22 @@ export default function ServiceDetail({
           serviceType: basics.title,
           description: intro,
           url: new URL(path, siteOrigin).href,
-          provider: {
-            "@id": siteOrigin + "/#betrieb",
-            "@type": "LocalBusiness",
-            name: businessInfo.name,
-            url: siteOrigin,
-            telephone: businessInfo.phone,
-          },
+          provider: { "@id": siteOrigin + "/#betrieb" },
           areaServed: city
             ? { "@type": "Place", name: city.name }
             : { "@type": "Place", name: "Nürnberg und Umgebung" },
         }}
       />
       <Intro
-        title={`${service.name} in ${place}`}
+        title={localGuide?.title ?? `${service.name} in ${place}`}
         description={intro}
         price={isMainService ? basics.price : undefined}
         priceLabel="Richtpreis für die Anfrage"
       />
+      {localGuide && <section className={styles.band}>
+        <h2>{localGuide.heading}</h2>
+        {localGuide.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+      </section>}
       <section className={styles.band}>
         <div className={styles.steps}>
           <div>
@@ -177,7 +176,7 @@ export default function ServiceDetail({
         <section className={styles.band}>
           <h2>{service.name} nach Einsatzort</h2>
           <div className={styles.links}>
-            {mainCities.map((item) => (
+            {serviceLocations(service).map((item) => (
               <Link
                 prefetch={false}
                 href={`/${item.slug}/${service.slug}`}

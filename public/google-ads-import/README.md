@@ -1,6 +1,6 @@
 # Google Ads Import Files
 
-Diese Dateien können in Google Ads Editor importiert werden, um Ihre Werbekampagnen einzurichten.
+Vorlagen für das Google-Ads-Konto von Möbelmontage Nürnberg. Die vier Kampagnen haben im Export den Status „Paused“. Die Suchanzeigen führen zur jeweils passenden Leistung.
 
 ## 📁 Dateien
 
@@ -32,7 +32,7 @@ Alle Kampagnen sind auf **Nürnberg + 65km Radius** eingestellt.
    - `keywords.csv`
    - `responsive-search-ads.csv`
 5. Überprüfen Sie die Änderungen
-6. Klicken Sie auf **Hochladen** um die Änderungen zu veröffentlichen
+6. Prüfen Sie die Importvorschau auf bestehende Kampagnennamen, Tagesbudgets, geografische Ausrichtung und das gewünschte Startdatum. Nach dem Hochladen bleiben die Vorlagen pausiert.
 
 ### Methode 2: Google Ads Web-Oberfläche
 
@@ -42,7 +42,7 @@ Alle Kampagnen sind auf **Nürnberg + 65km Radius** eingestellt.
 
 ## 🖼️ Display-Banner erstellen
 
-Für die Display-Remarketing-Kampagne müssen Banner-Bilder manuell erstellt werden:
+Die Display-Vorlage bleibt pausiert. Vor einem Einsatz sind Anzeigenbilder, eine geeignete Zielgruppe und die Freigabe der dafür erforderlichen Einwilligungseinstellungen zu prüfen. Die Website verwendet derzeit reine Statistik mit separat geschützten Werbefunktionen.
 
 1. Besuchen Sie `/admin/banners` auf Ihrer Website
 2. Wählen Sie Banner-Variante und Größe
@@ -60,7 +60,7 @@ Für die Display-Remarketing-Kampagne müssen Banner-Bilder manuell erstellt wer
 - Ersetzen Sie die Account-ID `743-891-1939` durch Ihre eigene Google Ads Account-ID
 - Passen Sie das Tagesbudget an Ihre Bedürfnisse an
 - Überprüfen Sie alle URLs vor dem Veröffentlichen
-- Testen Sie die Kampagnen zunächst mit einem niedrigen Budget
+- Für Website-Anfragen die importierte GA4-Aktion `generate_lead` einmal als primäres Ziel prüfen. Sie erfasst bestätigte Angebote und Rückrufwünsche. Telefon- und WhatsApp-Klicks zeigen Kontaktabsicht.
 
 ## 📞 Support
 

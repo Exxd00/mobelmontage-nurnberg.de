@@ -6,7 +6,9 @@ import Link from "next/link";
 import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap, AlertCircle, Phone, MessageCircle } from "lucide-react";
 import { trackFormStart, trackFormSubmit, trackLead } from "@/lib/analytics";
 import { getTrackingData } from "@/lib/tracking";
-import { inquiryHref, type InquiryIds } from "@/lib/inquiry-context";
+import type { InquiryIds } from "@/lib/inquiry-context";
+import { newInquiryAttempt } from "@/lib/inquiry-attempt";
+import { contactLinks } from "@/lib/contact-links";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,8 +180,9 @@ function fileToBase64(file: File | Blob): Promise<string> {
   });
 }
 
-export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false, businessInquiry = false, inquiryContext }: {
+export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false, businessInquiry = false, inquiryContext, contactLabels }: {
   initialService?: string; initialDetails?: string; embedded?: boolean; businessInquiry?: boolean; inquiryContext?: InquiryIds;
+  contactLabels?: { task?: string; city?: string; project?: string };
 } = {}) {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -207,11 +210,19 @@ export default function QuickContactForm({ initialService = "", initialDetails =
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
   const sending = useRef(false);
+  const attempt = useRef<string | undefined>(undefined);
   const [customerType, setCustomerType] = useState<"private" | "business" | null>(null);
   const selectedService = formData.service;
   const isBusiness = customerType ? customerType === "business" : businessInquiry && selectedService === initialService;
   const activeContext = selectedService === initialService ? inquiryContext : undefined;
-  const callbackHref = inquiryHref({ ...activeContext, service: selectedService, business: isBusiness ? activeContext?.business : undefined }, "callback");
+  const chat = contactLinks({ ...activeContext, service: selectedService, business: isBusiness ? activeContext?.business : undefined },
+    selectedService === initialService ? contactLabels : undefined);
+  const callbackHref = chat.callback;
+  useEffect(() => {
+    const notify = () => window.dispatchEvent(new Event("montage:contact-context"));
+    notify();
+    return () => queueMicrotask(notify);
+  }, [chat.whatsapp, callbackHref]);
   const rawMessage = notes[selectedService] ?? (selectedService === initialService ? initialDetails : "");
   const incomingBusinessReference = initialDetails.split("\n").find(line => line.startsWith("Firmenanfrage: "));
   const message = !isBusiness && incomingBusinessReference
@@ -231,7 +242,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
   const { images, plans } = uploads[selectedService] || { images: [], plans: [] };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sentInline, setSentInline] = useState(false);
+  const [inlineReference, setInlineReference] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [hasStartedForm, setHasStartedForm] = useState(false);
 
@@ -418,6 +429,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
 
       const serviceDetails = Object.fromEntries(fields.map(field => [field.key, (currentDetails[field.key] || "").trim()]));
       const submitData = {
+        attempt: attempt.current ??= newInquiryAttempt(),
         service: formData.service,
         message,
         plz: needsWorksitePostcode(selectedService) ? formData.worksite.trim() : "",
@@ -457,10 +469,11 @@ export default function QuickContactForm({ initialService = "", initialDetails =
 
       // Only treat as success if the server actually delivered the request.
       // The API returns { success: true } exclusively when the notification email was sent.
-      if (!response.ok || !result?.success) {
-        if (typeof result?.field === "string" && ["service", "plz", ...fields.map(field => field.key)].includes(result.field)) {
+      if (!response.ok || !result?.success || !result.notificationsSent?.email) {
+        const contactFields = ["name", "phone", "email"];
+        if (typeof result?.field === "string" && [...contactFields, "service", "plz", ...fields.map(field => field.key)].includes(result.field)) {
           setFieldError({ field: result.field, message: result.error || "Bitte prüfen Sie diese Angabe." });
-          setCurrentStep(1);
+          setCurrentStep(contactFields.includes(result.field) ? 2 : 1);
           setIsSubmitting(false);
           sending.current = false;
           setProgressState({ stage: "idle", progress: 0, message: "" });
@@ -496,7 +509,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
         if (typeof result.reference === "string") sessionStorage.setItem("inquiry_reference", result.reference);
         sessionStorage.setItem("form_submitted", "true");
       } catch {
-        setSentInline(true);
+        setInlineReference(typeof result.reference === "string" ? result.reference : "");
         return;
       }
       router.push("/thank-you");
@@ -534,8 +547,11 @@ export default function QuickContactForm({ initialService = "", initialDetails =
   }, [hasStartedForm, selectService]);
 
   return (
-    <section id={embedded ? undefined : "kontakt-form"} className={embedded ? "embedded-inquiry" : "section-padding bg-muted/30"}>
-      {sentInline ? <div role="status"><h2>Ihre Anfrage ist angekommen.</h2><p>Vielen Dank. Wir melden uns über Ihre angegebenen Kontaktdaten.</p></div> : (
+    <section data-active-whatsapp={chat.whatsapp} data-active-callback={callbackHref}
+      id={embedded ? undefined : "kontakt-form"} className={embedded ? "embedded-inquiry" : "section-padding bg-muted/30"}>
+      {inlineReference !== null ? <div role="status"><h2>Ihre Anfrage ist angekommen.</h2>
+        {inlineReference && <p>Ihre Anfragenummer: <strong>{inlineReference}</strong></p>}
+        <p>Vielen Dank. Wir melden uns über Ihre angegebenen Kontaktdaten.</p></div> : (
       <div className="container-max">
         <div className="max-w-2xl mx-auto">
           <div className="glass-card rounded-2xl md:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-xl">
@@ -818,10 +834,13 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                       type="email"
                       autoComplete="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setFieldError(null); }}
+                      aria-invalid={fieldError?.field === "email" || undefined}
+                      aria-describedby={fieldError?.field === "email" ? "quote-email-error" : undefined}
                       className="input-focus"
                       disabled={isSubmitting}
                     />
+                    {fieldError?.field === "email" && <p id="quote-email-error" role="alert" className="text-sm text-destructive">{fieldError.message}</p>}
                   </div>
 
                   {/* Progress Bar */}
@@ -854,7 +873,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
                           Anrufen: {businessInfo.phone}
                         </a>
                         <a
-                          href={`https://wa.me/${businessInfo.whatsapp.replace(/\D/g, "")}`}
+                          href={chat.whatsapp}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center justify-center gap-2 flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition-colors"

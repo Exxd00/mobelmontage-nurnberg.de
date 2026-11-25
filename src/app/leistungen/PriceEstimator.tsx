@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/layout/Header";
 import FormCTA from "@/components/sections/FormCTA";
 import { inquiryHref, inquiryQuery, readInquiryIds, type InquiryIds } from "@/lib/inquiry-context";
 import { getPriceExample, priceExamples } from "@/lib/price-examples";
+import { contactLinks } from "@/lib/contact-links";
 import styles from "@/components/service/Directory.module.css";
 
 type Category = { id: string; name: string; subServices: { slug: string; name: string }[] };
@@ -28,6 +30,12 @@ function usePriceSelection(services: Category[]) {
 
 export default function PriceEstimator({ services }: { services: Category[] }) {
   const { category, task, example, context } = usePriceSelection(services);
+  const chat = contactLinks(context, { task: task?.name });
+  useEffect(() => {
+    const notify = () => window.dispatchEvent(new Event("montage:contact-context"));
+    notify();
+    return () => queueMicrotask(notify);
+  }, [chat.whatsapp, chat.callback]);
   const choices = priceExamples.filter(item => !category || item.service === category);
   function updateSelection(next: InquiryIds) {
     const url = new URL(window.location.href);
@@ -36,7 +44,7 @@ export default function PriceEstimator({ services }: { services: Category[] }) {
     window.history.replaceState(null, "", url);
   }
   return (
-    <div>
+    <div data-active-whatsapp={chat.whatsapp} data-active-callback={chat.callback}>
       <div className={styles.filters}>
         <label htmlFor="preis-bereich">
           Leistung

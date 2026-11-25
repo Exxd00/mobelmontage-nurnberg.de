@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendSheetNotification } from "@/lib/sheet-notification";
 
 interface EventData {
   eventType: "phone_call" | "whatsapp" | "form";
@@ -11,46 +12,24 @@ interface EventData {
 
 // Send event to Google Sheets - matching the same structure as contact form
 async function sendEventToGoogleSheets(eventData: EventData): Promise<boolean> {
-  const webhookUrl = process.env.SHEETS_WEBHOOK_URL;
-
-  if (!webhookUrl) {
-    console.log("Google Sheets webhook URL not configured");
-    return false;
-  }
-
-  try {
-    const sourceLabels: Record<string, string> = {
-      "floating_button": "Floating Button",
-      "hero_section": "Hero Section",
-      "header": "Header",
-      "footer": "Footer",
-      "cta_section": "CTA Section",
-      "contact_form": "Kontaktformular",
-    };
-
-    // Send same structure as contact form
-    const payload = {
-      eventType: eventData.eventType,
-      name: sourceLabels[eventData.source] || eventData.source,
-      email: "-",
-      plz: "-",
-      service: "-",
-      priority: "Normal",
-      quelle: eventData.trafficSource || "Direct",
-      gclid: eventData.gclid || "-",
-    };
-
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Google Sheets error:", error);
-    return false;
-  }
+  const sourceLabels: Record<string, string> = {
+    "floating_button": "Floating Button",
+    "hero_section": "Hero Section",
+    "header": "Header",
+    "footer": "Footer",
+    "cta_section": "CTA Section",
+    "contact_form": "Kontaktformular",
+  };
+  return sendSheetNotification({
+    eventType: eventData.eventType,
+    name: sourceLabels[eventData.source] || eventData.source,
+    email: "-",
+    plz: "-",
+    service: "-",
+    priority: "Normal",
+    quelle: eventData.trafficSource || "Direct",
+    gclid: eventData.gclid || "-",
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -73,7 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await sendEventToGoogleSheets(body);
+    if (!await sendEventToGoogleSheets(body)) {
+      return NextResponse.json({ success: false, error: "Event not confirmed" }, { status: 502 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

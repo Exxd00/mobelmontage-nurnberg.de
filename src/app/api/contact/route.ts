@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { buildOperatorEmail, legacyAttachmentUrl } from "@/lib/operator-email";
 import { isContactPhone, needsWorksitePostcode, validateQuoteScope } from "@/lib/quote-requirements";
+import { sendSheetNotification } from "@/lib/sheet-notification";
 
 interface FileAttachment {
   filename: string;
@@ -49,31 +51,17 @@ function getPriority(data: ContactFormData): string {
 // Send to Google Sheets - Only essential columns (no phone).
 // Returns true only when a request was actually accepted by the webhook.
 async function sendToGoogleSheets(data: ContactFormData): Promise<boolean> {
-  const webhookUrl = process.env.SHEETS_WEBHOOK_URL;
-  if (!webhookUrl) return false;
-
-  try {
-    const priority = getPriority(data);
-
-    const res = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventType: "form",
-        name: data.name,
-        email: data.email || "-",
-        plz: data.plz || "-",
-        service: (Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service),
-        priority: priority,
-        quelle: data.quelle || "Direct",
-        gclid: data.gclid || "-",
-      }),
-    });
-    return res.ok;
-  } catch (e) {
-    console.error("Sheets error:", e);
-    return false;
-  }
+  return sendSheetNotification({
+    reference: data.reference,
+    eventType: "form",
+    name: data.name,
+    email: data.email || "-",
+    plz: data.plz || "-",
+    service: Object.hasOwn(SERVICE_NAMES, data.service) ? SERVICE_NAMES[data.service] : data.service,
+    priority: getPriority(data),
+    quelle: data.quelle || "Direct",
+    gclid: data.gclid || "-",
+  });
 }
 
 // Remove non-ASCII characters for email fields
@@ -145,7 +133,7 @@ function parseResendError(status: number, errorText: string): string {
 }
 
 // Send email - returns whether the email was ACTUALLY sent, plus a detailed reason on failure
-async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; error?: string }> {
+async function sendEmail(data: ContactFormData, key: string, submittedAt?: Date): Promise<{ emailSent: boolean; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   const recipientEmail = process.env.RECIPIENT_EMAIL;
 
@@ -185,7 +173,7 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
       from: safeFrom,
       to: [recipientEmail],
       subject: `${priority === "DRINGEND" ? "[DRINGEND] " : ""}${safeServiceName} - ${safeName} [${data.reference}]`,
-      ...buildOperatorEmail(data, { serviceName, express: priority === "DRINGEND" }),
+      ...buildOperatorEmail(data, { serviceName, express: priority === "DRINGEND", submittedAt }),
       reply_to: data.email || undefined,
     };
 
@@ -203,8 +191,10 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "Idempotency-Key": "montage/" + key,
       },
       body: JSON.stringify(emailPayload),
+      signal: AbortSignal.timeout(20000),
     });
 
     if (!res.ok) {
@@ -213,8 +203,10 @@ async function sendEmail(data: ContactFormData): Promise<{ emailSent: boolean; e
       return { emailSent: false, error: parseResendError(res.status, errorText) };
     }
 
-    console.log("Email sent successfully");
-    return { emailSent: true };
+    const receipt = await res.json();
+    return typeof receipt?.id === "string" && receipt.id
+      ? { emailSent: true }
+      : { emailSent: false, error: "Mail provider returned no receipt ID." };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("Email error:", message);
@@ -295,7 +287,7 @@ export async function POST(request: NextRequest) {
       if (!needsWorksitePostcode(service)) plz = serviceDetails.deliveryAddress?.match(/\b\d{5}\b/)?.[0] || "";
     }
     const data: ContactFormData = {
-      reference: `MN-${crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`,
+      reference: "",
       service,
       name: body.name.trim(),
       email,
@@ -311,35 +303,29 @@ export async function POST(request: NextRequest) {
       seite: body.seite,
     };
 
-    // Secondary notification (best effort): Google Sheets. Never blocks the result.
-    let sheetsSuccess = false;
-    try {
-      sheetsSuccess = await sendToGoogleSheets(data);
-      if (sheetsSuccess) console.log("Google Sheets notification sent successfully");
-    } catch (sheetsError) {
-      console.error("Google Sheets error:", sheetsError);
-    }
-
-    // Primary notification: the e-mail to the business. This MUST succeed.
-    const emailResult = await sendEmail(data);
-
-    // If the e-mail did not actually go out, tell the client exactly why so it
-    // can be shown on the site. Do NOT pretend the submission succeeded.
+    // Existing clients omit the token. New forms retain it across a failed submission.
+    const attempt = typeof body.attempt === "string" && /^(\d{13})\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(body.attempt);
+    const key = createHash("sha256").update(JSON.stringify([
+      attempt ? body.attempt : crypto.randomUUID(),
+      service, data.name, data.phone, email, plz, data.message, data.serviceDetails, businessInquiry, links, attachments,
+    ])).digest("hex");
+    data.reference = `MN-${key.slice(0, 12).toUpperCase()}`;
+    const emailResult = await sendEmail(data, key, attempt ? new Date(Number(attempt[1])) : undefined);
     if (!emailResult.emailSent) {
       console.error("Contact form NOT delivered - email failed:", emailResult.error);
       return NextResponse.json(
         {
           success: false,
-          error:
-            emailResult.error ||
-            "Ihre Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
-          notificationsSent: { sheets: sheetsSuccess, email: false },
+          error: "Ihre Anfrage konnte nicht bestätigt werden. Ihre Angaben bleiben im Formular. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
+          notificationsSent: { sheets: false, email: false },
         },
         { status: 502 },
       );
     }
 
-    console.log("Contact form delivered successfully via email");
+    // Record only enquiries already accepted by the business's email provider.
+    const sheetsSuccess = await sendToGoogleSheets(data);
+    if (!sheetsSuccess) console.warn("Sheet notification unconfirmed for", data.reference);
     return NextResponse.json({
       success: true,
       reference: data.reference,
@@ -354,7 +340,7 @@ export async function POST(request: NextRequest) {
     const message = e instanceof Error ? e.message : String(e);
     console.error("API error:", message);
     return NextResponse.json(
-      { success: false, error: `Serverfehler: ${message}` },
+      { success: false, error: "Ihre Anfrage konnte nicht bestätigt werden. Bitte versuchen Sie es erneut oder rufen Sie uns an." },
       { status: 500 },
     );
   }
