@@ -34,3 +34,9 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Zugang zur Montageverwaltung
+
+Die Verwaltung, Anzeigenvorschauen und zugehörigen Downloads verlangen eine HTTPS-Anmeldung mit dem Benutzernamen `admin`. Auf gemeinsam genutzten Geräten ein privates Browserfenster verwenden und es nach der Arbeit schließen.
+
+Der Projektinhaber kann ein langes, zufälliges Passwort im Passwortmanager erzeugen, in Vercel als serverseitige Variable `ADMIN_ACCESS_PASSWORD` für die gewünschte Umgebung setzen und neu deployen. Auf diesem Weg lässt sich der Zugang auch erneuern. Die Anwendung akzeptiert Passwörter ab 24 Zeichen. Ohne konfigurierten Zugang bleiben die internen Seiten geschlossen.

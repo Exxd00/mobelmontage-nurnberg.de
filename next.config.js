@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  outputFileTracingIncludes: {
+    "/google-ads-import/*": ["./operator-files/google-ads-import/*"],
+    "/google-sheets-script/*": ["./operator-files/google-sheets-script/*"],
+  },
   images: {
     // Optimize images
     formats: ['image/avif', 'image/webp'],
