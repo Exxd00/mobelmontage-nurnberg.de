@@ -65,7 +65,7 @@ export default function HomePage() {
           <h3>{label} <ArrowUpRight size={18}/></h3><p>{detail}</p>
         </Link>)}</div>
       <nav className="frequent-jobs" aria-label="Häufige Aufträge">
-        {frequentJobs.map(([label, slug]) => <Link key={slug} href={`/service/${slug}`}>{label}<ArrowRight size={15} aria-hidden="true"/></Link>)}
+        {frequentJobs.map(([label, slug]) => <Link key={slug} prefetch={false} href={`/service/${slug}`}>{label}<ArrowRight size={15} aria-hidden="true"/></Link>)}
       </nav>
     </div></section>
     <section className="studio-shell home-projects">
