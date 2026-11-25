@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Send, Loader2, Upload, X, FileText, FileImage, File, ArrowRight, ArrowLeft, Check, Zap, AlertCircle, Phone, MessageCircle } from "lucide-react";
 import { trackFormStart, trackFormSubmit, trackLead } from "@/lib/analytics";
 import { getTrackingData } from "@/lib/tracking";
+import { inquiryHref, type InquiryIds } from "@/lib/inquiry-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,8 +178,8 @@ function fileToBase64(file: File | Blob): Promise<string> {
   });
 }
 
-export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false, businessInquiry = false }: {
-  initialService?: string; initialDetails?: string; embedded?: boolean; businessInquiry?: boolean;
+export default function QuickContactForm({ initialService = "", initialDetails = "", embedded = false, businessInquiry = false, inquiryContext }: {
+  initialService?: string; initialDetails?: string; embedded?: boolean; businessInquiry?: boolean; inquiryContext?: InquiryIds;
 } = {}) {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -207,8 +208,10 @@ export default function QuickContactForm({ initialService = "", initialDetails =
   const [fieldError, setFieldError] = useState<{ field: string; message: string } | null>(null);
   const sending = useRef(false);
   const [customerType, setCustomerType] = useState<"private" | "business" | null>(null);
-  const isBusiness = customerType ? customerType === "business" : businessInquiry;
   const selectedService = formData.service;
+  const isBusiness = customerType ? customerType === "business" : businessInquiry && selectedService === initialService;
+  const activeContext = selectedService === initialService ? inquiryContext : undefined;
+  const callbackHref = inquiryHref({ ...activeContext, service: selectedService, business: isBusiness ? activeContext?.business : undefined }, "callback");
   const rawMessage = notes[selectedService] ?? (selectedService === initialService ? initialDetails : "");
   const incomingBusinessReference = initialDetails.split("\n").find(line => line.startsWith("Firmenanfrage: "));
   const message = !isBusiness && incomingBusinessReference
@@ -365,7 +368,10 @@ export default function QuickContactForm({ initialService = "", initialDetails =
     setCurrentStep(1);
     setError("");
     setFieldError(null);
-    scrollToElement("form-step-indicator", 20);
+    requestAnimationFrame(() => {
+      document.getElementById("quick-service")?.focus({ preventScroll: true });
+      scrollToElement("form-step-indicator", 20);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -540,7 +546,7 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               </h2>
               <p className="text-muted-foreground text-sm md:text-base">
                 Nach Ihren Projektangaben erstellen wir Ihr individuelles Angebot. Möchten Sie zuerst etwas besprechen?{" "}
-                <Link href="/rueckruf" className="font-semibold text-primary underline">Rückruf anfragen</Link>
+                <Link href={callbackHref} className="font-semibold text-primary underline">Rückruf anfragen</Link>
               </p>
             </div>
 
@@ -747,6 +753,27 @@ export default function QuickContactForm({ initialService = "", initialDetails =
               {/* Step 2: Contact Details */}
               {currentStep === 2 && (
                 <div className="space-y-5">
+                  <details className="quote-review">
+                    <summary>Projektangaben prüfen
+                      <span>{services.find(service => service.id === selectedService)?.shortName || "Anderes Vorhaben"} · {isBusiness ? "Firma" : "Privat"}
+                        {needsWorksitePostcode(selectedService) && ` · ${formData.worksite.trim()}`}</span>
+                    </summary>
+                    <div>
+                      {Array.from(groups, ([title, members]) => <section key={title}>
+                        <h3>{title}</h3>
+                        <dl>{members.map(field => <div key={field.key}>
+                          <dt>{field.label}</dt>
+                          <dd>{currentDetails[field.key]?.trim() || (field.key === "specification" && "Siehe Anhänge")}</dd>
+                        </div>)}</dl>
+                      </section>)}
+                      {message.trim() && <section><h3>Weitere Hinweise</h3><p>{message.trim()}</p></section>}
+                      {(images.length > 0 || plans.length > 0) && <section>
+                        <h3>Anhänge</h3>
+                        <ul>{[...images, ...plans].map(({file}, index) => <li key={index}>{file.name}</li>)}</ul>
+                      </section>}
+                      <button type="button" disabled={isSubmitting} onClick={goToStep1}>Projektangaben ändern</button>
+                    </div>
+                  </details>
                   {/* Name */}
                   <div className="space-y-2">
                     <Label htmlFor="quick-name">{isBusiness ? "Ansprechperson" : "Ihr Name"} *</Label>

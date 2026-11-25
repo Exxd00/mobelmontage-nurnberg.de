@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { businessInfo } from "@/lib/data";
+import { inquiryHref, type InquiryIds } from "@/lib/inquiry-context";
 import styles from "@/components/service/Directory.module.css";
 
 interface FormCTAProps {
@@ -7,7 +8,7 @@ interface FormCTAProps {
   subtitle?: string;
   cityName?: string;
   serviceName?: string;
-  href?: string;
+  context?: InquiryIds;
   compact?: boolean;
 }
 
@@ -16,7 +17,7 @@ export default function FormCTA({
   subtitle,
   cityName,
   serviceName,
-  href = "/#kontakt-form",
+  context = {},
   compact,
 }: FormCTAProps) {
   const subject = [serviceName ?? "Angebot", cityName && `in ${cityName}`]
@@ -30,9 +31,10 @@ export default function FormCTA({
           "Im Formular geben Sie die Arbeiten, den Einsatzort und Ihren Terminwunsch an. Unser Montageteam prüft den Umfang und meldet sich mit Ihrem persönlichen Angebot oder einer Rückfrage."}
       </p>
       <div className={styles.links}>
-        <Link className={styles.primary} href={href}>
+        <Link className={styles.primary} href={inquiryHref(context)}>
           Zum Anfrageformular →
         </Link>
+        <Link href={inquiryHref(context, "callback")}>Rückruf anfragen</Link>
         <a href={`tel:${businessInfo.phone.replace(/\s/g, "")}`}>
           {businessInfo.phone}
         </a>

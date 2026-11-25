@@ -3,6 +3,8 @@ import Image from "next/image";
 import FormCTA from "@/components/sections/FormCTA";
 import { businessInfo } from "@/lib/data";
 import { projects } from "@/lib/projects";
+import { inquiryHref } from "@/lib/inquiry-context";
+import { priceFinderHref } from "@/lib/price-examples";
 import {
   cityServices,
   mainCities,
@@ -39,9 +41,9 @@ export default function ServiceDetail({
   const example = guide?.example;
   const project = example && projects.find((item) => item.slug === example.slug);
   const projectPhoto = example && project?.comparisons[0]?.[example.stage];
-  const inquiryHref = `/?leistung=${encodeURIComponent(service.parentId)}#kontakt-form`;
+  const context = { service: service.parentId, task: isMainService ? undefined : service.slug, city: city?.slug };
   return (
-    <Directory crumbs={[...crumbs, { label: service.name, href: path }]}>
+    <Directory crumbs={[...crumbs, { label: service.name, href: path }]} offerHref={inquiryHref(context)}>
       <JsonLd
         value={{
           "@context": "https://schema.org",
@@ -80,7 +82,7 @@ export default function ServiceDetail({
               Umfang, Zugang und Anfahrt fließen in das Angebot ein. Den
               vereinbarten Preis erhalten Sie vor der Beauftragung.
             </>}</p>
-            <Link href="/leistungen">Preisbeispiele ansehen →</Link>
+            <Link href={priceFinderHref(service.slug, city?.slug)}>Preisbeispiele ansehen →</Link>
           </div>
           <div>
             <h2>Was braucht die Anfrage?</h2>
@@ -91,7 +93,7 @@ export default function ServiceDetail({
                 Wunschtermin bei der Tourenplanung.
               </p>
             )}
-            <Link href={inquiryHref}>Anfrage stellen →</Link>
+            <Link href={inquiryHref(context)}>Anfrage stellen →</Link>
           </div>
         </div>
       </section>
@@ -188,7 +190,7 @@ export default function ServiceDetail({
           </div>
         </section>
       )}
-      <FormCTA cityName={city?.name} serviceName={service.name} href={inquiryHref} />
+      <FormCTA cityName={city?.name} serviceName={service.name} context={context} />
     </Directory>
   );
 }

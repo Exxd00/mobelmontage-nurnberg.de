@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import FormCTA from "@/components/sections/FormCTA";
 import {
   Directory,
@@ -10,7 +11,8 @@ import { services } from "@/lib/data";
 import { pageMetadata } from "@/lib/service-directory";
 import { serviceBasics } from "@/lib/service-guide";
 import { priceExamples } from "@/lib/price-examples";
-import PriceEstimator from "./PriceEstimator";
+import PriceEstimator, { PriceFormCTA, PriceHeader } from "./PriceEstimator";
+import Header from "@/components/layout/Header";
 
 export const metadata = pageMetadata(
   "Leistungen & Preise für Lieferung und Montage | Möbelmontage Nürnberg",
@@ -19,8 +21,10 @@ export const metadata = pageMetadata(
 );
 
 export default function LeistungenPage() {
+  const categories = services.map(({ id, name, subServices }) => ({ id, name, subServices }));
   return (
-    <Directory crumbs={[{ label: "Leistungen", href: "/leistungen" }]}>
+    <Directory crumbs={[{ label: "Leistungen", href: "/leistungen" }]}
+      header={<Suspense fallback={<Header/>}><PriceHeader services={categories}/></Suspense>}>
       <Intro
         title="Leistungen und Preise"
         description="Vom einzelnen Möbelstück bis zur Küchenzeile: Wählen Sie Ihren Auftrag und sehen Sie, welche Angaben für ein konkretes Angebot helfen."
@@ -51,7 +55,9 @@ export default function LeistungenPage() {
           Anfrageformular. Nach Prüfung von Umfang, Zugang und Anfahrt erhalten
           Sie Ihr persönliches Angebot.
         </p>
-        <PriceEstimator />
+        <Suspense fallback={<p>Preisfinder wird geladen …</p>}>
+          <PriceEstimator services={categories} />
+        </Suspense>
         <details>
           <summary>Alle sechs Preisbeispiele vergleichen</summary>
           <table className={styles.priceTable}>
@@ -96,7 +102,7 @@ export default function LeistungenPage() {
           </div>
         </section>
       ))}
-      <FormCTA />
+      <Suspense fallback={<FormCTA/>}><PriceFormCTA services={categories}/></Suspense>
     </Directory>
   );
 }
