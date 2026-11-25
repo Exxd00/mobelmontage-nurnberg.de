@@ -100,7 +100,7 @@ function AdBanner({
             {/* Features - Only for larger banners */}
             {!isSmall && isLandscape && (
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Festpreis</span>
+                <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Planung nach Maß</span>
                 <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Termin nach Absprache</span>
                 <span className="bg-white/20 rounded-full px-3 py-1 text-sm">Angebot nach Anfrage</span>
               </div>
@@ -314,7 +314,7 @@ export default function AdsPage() {
                   <li className="bg-white p-2 rounded">Küchenmontage vom Profi</li>
                   <li className="bg-white p-2 rounded">Jetzt Angebot erhalten</li>
                   <li className="bg-white p-2 rounded">Nürnberg und Umgebung</li>
-                  <li className="bg-white p-2 rounded">Festpreise</li>
+                  <li className="bg-white p-2 rounded">Einzelmontage ab 35 €</li>
                   <li className="bg-white p-2 rounded">Küchenplan einreichen</li>
                   <li className="bg-white p-2 rounded">Montagetermin anfragen</li>
                   <li className="bg-white p-2 rounded">Angebot für Ihren Aufbau</li>

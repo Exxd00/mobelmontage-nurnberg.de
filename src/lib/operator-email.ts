@@ -178,14 +178,14 @@ function plainCard(card: Card) {
   return parts.join("\n");
 }
 
-export function buildOperatorEmail(data: Inquiry, options: { serviceName: string; express: boolean; receivedAt?: Date }) {
+export function buildOperatorEmail(data: Inquiry, options: { serviceName: string; express: boolean; receivedAt?: Date; submittedAt?: Date }) {
   const domain = "mobelmontage-nurnberg.de";
   const title = data.service === "rueckruf" ? "Neuer Rückrufwunsch" : "Neue Anfrage";
   const service = data.service === "lieferungen" ? "Möbellieferung" : options.serviceName;
-  const received = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(options.receivedAt ?? new Date());
+  const received = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(options.submittedAt ?? options.receivedAt ?? new Date());
   const links = phoneActions(data.phone);
   const cards = collectCards(data, links?.tel, options.express);
-  const footer = `Eingang ${received} Uhr · ${data.reference}`;
+  const footer = `${options.submittedAt ? "Anfrage erstellt" : "Eingang"} ${received} Uhr · ${data.reference}`;
   const darkStyles = `.canvas{background-color:#222A25!important}.card{background-color:#303A33!important;border-top-color:#4C574E!important;border-right-color:#4C574E!important;border-bottom-color:#4C574E!important}.value,.heading{color:#F3F4EB!important}.label,.foot{color:#C4CFC3!important}.domain,.contact-link{color:#FFB5AF!important}.pill{background-color:#C4D7B7!important;color:#243A29!important}.phone-btn{background-color:#482E31!important;border-color:#D18891!important}.phone-text{color:#FFD4D7!important}.wa-btn{background-color:#356A48!important;border-color:#81B993!important}.wa-text{color:#FFFFFF!important}${Object.entries(tones).map(([key,tone])=>`.tone-${key}{color:${tone.dark}!important}`).join("")}`;
   const outlookDark = darkStyles.replace(/(^|})(\.[^{]+)/g, (_, before, selectors: string) => before + selectors.split(",").map(s => "[data-ogsc] " + s).join(","));
   const renderedCards = cards.map((card, index) => cardHtml(card) + (index === 0 && links ? actionButtons(links) : "")).join("");

@@ -1,16 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { businessInfo } from "@/lib/data";
 
-export const metadata: Metadata = {
-  title: "Datenschutzerklärung",
-  description: "Datenschutzerklärung von Möbelmontage Nürnberg",
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+export const metadata = pageMetadata(
+  "Datenschutzerklärung | Möbelmontage Nürnberg",
+  "Datenschutzerklärung von Möbelmontage Nürnberg",
+  "/datenschutz",
+);
 
 export default function DatenschutzPage() {
   return (
@@ -82,6 +79,15 @@ export default function DatenschutzPage() {
                   mit Ihrer Anfrage über unseren E-Mail-Dienst an unseren
                   Betrieb übermittelt. Für Rückrufwünsche verwenden wir die
                   angegebene Telefonnummer und Ihre freiwilligen Zeitangaben.
+                </p>
+                <p className="text-foreground mt-2">
+                  Nach der Annahme durch unseren E-Mail-Dienst übertragen wir für die
+                  Bearbeitung eine Zusammenfassung an unsere Anfrageübersicht in Google
+                  Sheets. Dazu gehören Name, angefragte Leistung, Anfragenummer,
+                  Priorität sowie eine angegebene E-Mail-Adresse und Postleitzahl.
+                  Mit Ihrer Zustimmung zur Statistik kann die Übersicht auch die
+                  Besuchsquelle und eine Google-Klickkennung enthalten. Fotos,
+                  Pläne und Telefonnummern bleiben der Anfrage per E-Mail vorbehalten.
                 </p>
                 <p className="text-foreground mt-2">
                   Die Verarbeitung dieser Daten erfolgt auf Grundlage von Art. 6

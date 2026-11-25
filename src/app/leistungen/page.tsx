@@ -10,13 +10,13 @@ import styles from "@/components/service/Directory.module.css";
 import { services } from "@/lib/data";
 import { pageMetadata } from "@/lib/service-directory";
 import { serviceBasics } from "@/lib/service-guide";
-import { priceExamples } from "@/lib/price-examples";
+import { priceExamples, startingPrices, singleItemPrices } from "@/lib/price-examples";
 import PriceEstimator, { PriceFormCTA, PriceHeader } from "./PriceEstimator";
 import Header from "@/components/layout/Header";
 
 export const metadata = pageMetadata(
   "Leistungen & Preise für Lieferung und Montage | Möbelmontage Nürnberg",
-  "Lieferung ab 39 €, Möbelmontage ab 59 € und Küchenmontage ab 149 €. Richtpreise, Beispiele und Angaben für Ihr individuelles Angebot in der Region Nürnberg.",
+  `Lieferung ab ${startingPrices.lieferungen}, Möbelmontage ab ${startingPrices.moebelmontage} und Küchenmontage ab ${startingPrices.kuechenmontage}. Richtpreise, Beispiele und Angaben für Ihr individuelles Angebot in der Region Nürnberg.`,
   "/leistungen",
 );
 
@@ -53,7 +53,7 @@ export default function LeistungenPage() {
           Wählen Sie einen Beispielauftrag oder eine Leistung. Der angezeigte
           Richtpreis hilft bei der Planung. Wir übernehmen Ihre Auswahl ins
           Anfrageformular. Nach Prüfung von Umfang, Zugang und Anfahrt erhalten
-          Sie Ihr persönliches Angebot.
+          Sie Ihr persönliches Angebot. In Nürnberg sind auch Einzelstücke buchbar: ein KALLAX-Regal ab {singleItemPrices.kallax}, eine HEMNES-Kommode ab {singleItemPrices.hemnes}.
         </p>
         <Suspense fallback={<p>Preisfinder wird geladen …</p>}>
           <PriceEstimator services={categories} />

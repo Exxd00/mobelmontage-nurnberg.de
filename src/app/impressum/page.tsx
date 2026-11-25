@@ -1,16 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/page-metadata";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { businessInfo } from "@/lib/data";
 
-export const metadata: Metadata = {
-  title: "Impressum",
-  description: "Impressum und rechtliche Informationen von Möbelmontage Nürnberg",
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+export const metadata = pageMetadata(
+  "Impressum | Möbelmontage Nürnberg",
+  "Impressum und rechtliche Informationen von Möbelmontage Nürnberg",
+  "/impressum",
+);
 
 export default function ImpressumPage() {
   return (
@@ -24,7 +21,7 @@ export default function ImpressumPage() {
             <div className="prose prose-lg dark:prose-invert max-w-none space-y-8">
               <section>
                 <h2 className="text-xl font-bold mb-4">
-                  Angaben gemäß § 5 TMG
+                  Angaben gemäß § 5 DDG
                 </h2>
                 <p className="text-foreground">
                   {businessInfo.name}
@@ -42,9 +39,9 @@ export default function ImpressumPage() {
               <section>
                 <h2 className="text-xl font-bold mb-4">Kontakt</h2>
                 <p className="text-foreground">
-                  Telefon: {businessInfo.phone}
+                  Telefon: <a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}>{businessInfo.phone}</a>
                   <br />
-                  E-Mail: {businessInfo.email}
+                  E-Mail: <a href={"mailto:" + businessInfo.email}>{businessInfo.email}</a>
                 </p>
               </section>
 
@@ -69,24 +66,6 @@ export default function ImpressumPage() {
               </section>
 
               <section>
-                <h2 className="text-xl font-bold mb-4">EU-Streitschlichtung</h2>
-                <p className="text-foreground">
-                  Die Europäische Kommission stellt eine Plattform zur
-                  Online-Streitbeilegung (OS) bereit:{" "}
-                  <a
-                    href="https://ec.europa.eu/consumers/odr/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    https://ec.europa.eu/consumers/odr/
-                  </a>
-                  <br />
-                  Unsere E-Mail-Adresse finden Sie oben im Impressum.
-                </p>
-              </section>
-
-              <section>
                 <h2 className="text-xl font-bold mb-4">
                   Verbraucherstreitbeilegung/
                   Universalschlichtungsstelle
@@ -101,22 +80,7 @@ export default function ImpressumPage() {
               <section>
                 <h2 className="text-xl font-bold mb-4">Haftung für Inhalte</h2>
                 <p className="text-foreground">
-                  Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene
-                  Inhalte auf diesen Seiten nach den allgemeinen Gesetzen
-                  verantwortlich. Nach §§ 8 bis 10 TMG sind wir als
-                  Diensteanbieter jedoch nicht verpflichtet, übermittelte oder
-                  gespeicherte fremde Informationen zu überwachen oder nach
-                  Umständen zu forschen, die auf eine rechtswidrige Tätigkeit
-                  hinweisen.
-                </p>
-                <p className="text-foreground mt-4">
-                  Verpflichtungen zur Entfernung oder Sperrung der Nutzung von
-                  Informationen nach den allgemeinen Gesetzen bleiben hiervon
-                  unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem
-                  Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung
-                  möglich. Bei Bekanntwerden von entsprechenden
-                  Rechtsverletzungen werden wir diese Inhalte umgehend
-                  entfernen.
+                  Für die eigenen Inhalte dieser Website sind wir nach den allgemeinen Gesetzen verantwortlich. Hinweise zu Inhalten erreichen uns über die oben genannten Kontaktdaten.
                 </p>
               </section>
 

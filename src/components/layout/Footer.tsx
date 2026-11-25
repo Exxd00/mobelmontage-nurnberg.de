@@ -2,9 +2,11 @@ import Link from "next/link";
 import { businessInfo } from "@/lib/data";
 import { CookieSettingsButton } from "@/components/CookieConsent";
 import Brand from "./Brand";
+import FloatingButtons from "./FloatingButtons";
+import { contactLinks } from "@/lib/contact-links";
 
-export default function Footer() {
-  return <footer className="studio-footer">
+export default function Footer({ contact = contactLinks() }: { contact?: ReturnType<typeof contactLinks> }) {
+  return <><footer className="studio-footer">
     <div className="studio-shell footer-grid">
       <div><Brand footer/>
         <p>{businessInfo.name}<br/>{businessInfo.address.street} · {businessInfo.address.zip} Nürnberg</p>
@@ -17,11 +19,11 @@ export default function Footer() {
       </nav>
       <div><a href={"tel:" + businessInfo.phone.replace(/\s/g, "")}>{businessInfo.phone}</a>
         <a href={"mailto:" + businessInfo.email}>{businessInfo.email}</a>
-        <a href={"https://wa.me/" + businessInfo.whatsapp.replace(/\D/g, "")}>Auf WhatsApp schreiben</a>
+        <a href={contact.whatsapp} data-page-whatsapp={contact.whatsapp}>Auf WhatsApp schreiben</a>
       </div>
     </div>
     <div className="studio-shell footer-end"><span>© {new Date().getFullYear()} {businessInfo.displayName}</span>
       <nav aria-label="Rechtliches"><Link href="/impressum">Impressum</Link><Link href="/datenschutz">Datenschutz</Link><CookieSettingsButton/></nav>
     </div>
-  </footer>;
+  </footer><FloatingButtons {...contact}/></>;
 }

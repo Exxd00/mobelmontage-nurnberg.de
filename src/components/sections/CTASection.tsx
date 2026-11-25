@@ -1,5 +1,7 @@
 "use client";
 
+import { startingPrices } from "@/lib/price-examples";
+
 import Link from "next/link";
 import { Phone, ArrowRight, Star, CheckCircle, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,7 @@ export default function CTASection() {
           {/* 4 Key Benefits */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8 lg:mb-10">
             {[
-              "Möbelmontage ab 59€",
+              "Möbelmontage ab " + startingPrices.moebelmontage,
               "Küchenmontage ab 149€",
               "4.9/5 Kundenzufriedenheit",
               "12+ Jahre Erfahrung",

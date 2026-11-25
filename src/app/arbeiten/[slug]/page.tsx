@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import { pageMetadata, projectShareImage, siteOrigin as origin } from "@/lib/page-metadata";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { contactLinks } from "@/lib/contact-links";
 import { ProjectCover } from "@/components/sections/Gallery";
 import { getProject, projects, type ProjectPhoto } from "@/lib/projects";
 import styles from "../projects.module.css";
 
-const origin = "https://mobelmontage-nurnberg.de";
 type Props = { params: Promise<{ slug: string }> };
 
 const serviceLabels = {
@@ -36,16 +37,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const project = getProject((await params).slug);
   if (!project) notFound();
-  const title = `${project.title} – Küchenmontage`;
-  const url = `${origin}/arbeiten/${project.slug}`;
-  const image = { url: project.cover.src, width: 1080, height: 720, alt: project.cover.alt };
-  return {
-    title,
-    description: project.summary,
-    alternates: { canonical: url },
-    openGraph: { title, description: project.summary, url, locale: "de_DE", images: [image] },
-    twitter: { card: "summary_large_image", title, description: project.summary, images: [image] },
-  };
+  return pageMetadata(
+    `${project.title} – Küchenmontage | Möbelmontage Nürnberg`, project.summary,
+    `/arbeiten/${project.slug}`, projectShareImage(project.cover.src, project.cover.alt),
+  );
 }
 
 function Photo({ photo, heading, caption }: { photo: ProjectPhoto; heading: string; caption: string }) {
@@ -139,7 +134,7 @@ export default async function ProjectPage({ params }: Props) {
           </div>
         </div>
       </main>
-      <Footer />
+      <Footer contact={contactLinks({ service: "kuechenmontage", project: project.slug }, { project: project.shortTitle })}/>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
     </>
   );

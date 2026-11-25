@@ -1,5 +1,7 @@
 "use client";
 
+import { startingPrices } from "@/lib/price-examples";
+
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Star, CheckCircle, Phone } from "lucide-react";
@@ -443,7 +445,7 @@ export default function HeroSection() {
               <span className="text-gradient-animate">Möbelmontage</span> in Nürnberg
               <br />
               <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl">
-                ab <span className="text-primary">59€</span>
+                ab <span className="text-primary">{startingPrices.moebelmontage}</span>
               </span>
             </h1>
 
@@ -455,7 +457,7 @@ export default function HeroSection() {
             {/* Key Benefits - Better grid on desktop */}
             <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:gap-3">
               {[
-                "Möbelmontage ab 59€",
+                "Möbelmontage ab " + startingPrices.moebelmontage,
                 "Küchenmontage ab 149€",
                 "Termine in 24–48h",
                 "100% Festpreise",
@@ -542,7 +544,7 @@ export default function HeroSection() {
                     </h3>
                     <span className="text-primary font-bold text-sm lg:text-lg whitespace-nowrap">
                       {service.id === "lieferungen" && "ab 39€"}
-                      {service.id === "moebelmontage" && "ab 59€"}
+                      {service.id === "moebelmontage" && "ab " + startingPrices.moebelmontage}
                       {service.id === "kuechenmontage" && "ab 149€"}
                     </span>
                   </div>

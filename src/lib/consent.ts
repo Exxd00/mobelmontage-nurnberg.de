@@ -16,8 +16,12 @@ export function getCookieChoice(): CookieChoice | null {
   }
 }
 
+export function isPublicAnalyticsPage(pathname: string) {
+  return !/^\/(admin|ads|ads-import|google-ads-import|google-sheets-script)(\/|$)/.test(pathname);
+}
+
 export function hasAnalyticsConsent() {
-  return getCookieChoice() === "accepted";
+  return getCookieChoice() === "accepted" && isPublicAnalyticsPage(window.location.pathname);
 }
 
 export function setCookieChoice(choice: CookieChoice) {

@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { businessInfo } from "@/lib/data";
+import { siteOrigin as site } from "@/lib/page-metadata";
 import CookieConsent from "@/components/CookieConsent";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
 import ContactActions from "@/components/layout/ContactActions";
 import "./globals.css";
 
-const site = "https://mobelmontage-nurnberg.de";
 const title = "Möbelmontage und Küchenmontage in Nürnberg";
 const description = "Möbel aufbauen lassen, eine Küche montieren oder Möbel liefern lassen. Entdecken Sie Küchenprojekte und stellen Sie Ihre Anfrage in Nürnberg und Umgebung.";
 
@@ -27,11 +27,6 @@ export const metadata: Metadata = {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/icons/icon-192x192.png", sizes: "192x192" }],
   },
-  openGraph: {
-    type: "website", locale: "de_DE", siteName: businessInfo.displayName, title, description,
-    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "Weiße Messeküche mit beleuchteten Glasvitrinen" }],
-  },
-  twitter: { card: "summary_large_image", images: ["/og-image.jpg"] },
   robots: { index: true, follow: true, googleBot: { "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
 };
 

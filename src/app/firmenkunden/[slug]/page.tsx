@@ -5,7 +5,7 @@ import { ArrowRight, Phone } from "lucide-react";
 import { Directory } from "@/components/service/Directory";
 import { businessGuides } from "@/lib/business-guides";
 import { businessInquiries, businessInquiryHref, businessInquiryKeys, isBusinessInquiry } from "@/lib/business-inquiries";
-import { pageMetadata } from "@/lib/service-directory";
+import { pageMetadata, projectShareImage } from "@/lib/page-metadata";
 import styles from "../business.module.css";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -31,8 +31,7 @@ async function getGuide(params: Props["params"]) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, guide, image } = await getGuide(params);
   const title = slug === "ausstellung" ? `${guide.title} | Nürnberg` : guide.title;
-  const meta = pageMetadata(title, guide.description, `/firmenkunden/${slug}`);
-  return { ...meta, openGraph: { ...meta.openGraph, images: [image] }, twitter: { ...meta.twitter, images: [image] } };
+  return pageMetadata(title, guide.description, `/firmenkunden/${slug}`, projectShareImage(image.url, image.alt));
 }
 
 export default async function BusinessGuidePage({ params }: Props) {

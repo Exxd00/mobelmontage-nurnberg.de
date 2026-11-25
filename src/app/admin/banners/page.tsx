@@ -15,7 +15,7 @@ const bannerVariants = [
     id: "moebelmontage",
     title: "Möbelmontage",
     headline: "Möbelmontage Nürnberg",
-    subheadline: "Professionell • Schnell • Festpreis",
+    subheadline: "Aufbau nach Modell und Umfang",
     cta: "Jetzt Angebot erhalten",
     bgGradient: "from-amber-600 to-orange-700",
     icon: "🔧",
@@ -33,17 +33,17 @@ const bannerVariants = [
     id: "kueche",
     title: "Küchenmontage",
     headline: "Küchenmontage Komplett",
-    subheadline: "Inkl. Elektro & Wasseranschluss",
+    subheadline: "Küchenplan und Geräte prüfen",
     cta: "Termin vereinbaren",
     bgGradient: "from-emerald-600 to-teal-700",
     icon: "🍳",
   },
   {
     id: "express",
-    title: "Express Service",
-    headline: "Express-Service verfügbar",
-    subheadline: "Termin in 24h möglich",
-    cta: "Jetzt buchen",
+    title: "Möbellieferung",
+    headline: "Möbel liefern lassen",
+    subheadline: "Abhol- und Lieferort angeben",
+    cta: "Lieferung anfragen",
     bgGradient: "from-red-600 to-rose-700",
     icon: "⚡",
   },
@@ -86,7 +86,7 @@ function BannerPreview({
           <div
             className={`${isLeaderboard ? "" : "absolute top-2 left-2"} bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium`}
           >
-            12 Jahre Erfahrung
+            Nürnberg und Umgebung
           </div>
         )}
 
@@ -128,9 +128,9 @@ function BannerPreview({
         {/* Trust badges */}
         {!isSmall && !isLeaderboard && (
           <div className="mt-3 flex items-center justify-center gap-2 text-xs opacity-80">
-            <span>✓ 5.000+ Kunden</span>
+            <span>✓ Angebot nach Umfang</span>
             <span>•</span>
-            <span>✓ Festpreis</span>
+            <span>✓ Rückruf möglich</span>
           </div>
         )}
       </div>

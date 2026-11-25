@@ -47,7 +47,7 @@ export default function CookieConsent() {
   return (
     <>
     {showPrompt && <>
-      <aside aria-label="Statistik-Einstellungen" className={styles.prompt}>
+      <aside aria-label="Statistik-Einstellungen" data-cookie-prompt className={styles.prompt}>
         <button className={styles.details} type="button" aria-label="Mehr über optionale Statistik erfahren" onClick={() => dialog.current?.showModal()}>Optionale Statistik</button>
         <div className={styles.choices}>
           <button type="button" onClick={() => save("declined")}>Ablehnen</button>

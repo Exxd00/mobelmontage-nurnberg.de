@@ -36,6 +36,9 @@ function Entry({ query, projectTitles }: Props & { query: string }) {
   const context = resolveInquiry(ids, projectTitles, directory ?? {});
   const service = context.ids.service ?? choice;
   if (service) return <QuickContactForm initialService={service} initialDetails={context.reference}
+    contactLabels={{ task: context.ids.task ? directory?.task?.name : undefined,
+      city: directory?.city?.unconfirmed ? undefined : directory?.city?.name,
+      project: context.ids.project ? projectTitles[context.ids.project] : undefined }}
     inquiryContext={{ ...context.ids, service }} businessInquiry={Boolean(context.ids.business)} embedded/>;
   return <>
     <h3>Ihr Vorhaben</h3>
